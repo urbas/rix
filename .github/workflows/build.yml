@@ -1,0 +1,25 @@
+name: builder
+on: [push, pull_request]
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cache Rust Artifacts
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-rust-artifacts-v9
+        with:
+          path: |
+            /usr/share/rust/.cargo
+            target
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: |
+          set -x
+          rustfmt --check **/*.rs
+          cargo test

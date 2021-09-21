@@ -1,0 +1,13 @@
+[package]
+name = "rix"
+version = "0.1.0"
+edition = "2018"
+
+[dev-dependencies]
+assert_cmd = "0.12"
+predicates = "2"
+tempfile = "3"
+
+[dependencies]
+clap = "2"
+colored = "2"
