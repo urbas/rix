@@ -1,4 +1,5 @@
 mod cmd_show_derivations;
+mod parsers;
 
 use clap::App;
 use colored::*;

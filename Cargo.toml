@@ -11,3 +11,4 @@ tempfile = "3"
 [dependencies]
 clap = "2"
 colored = "2"
+nom = "7"
