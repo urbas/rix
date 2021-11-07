@@ -4,8 +4,8 @@ A reimplementation of `nix` in Rust.
 
 # Progress
 
-- 🌑 `nix show-derivation`
-  - 🌑 stage 1 (MVP): parse .drv files and dump JSON
+- 🌘 `nix show-derivation`
+  - 🌕 stage 1 (MVP): parse .drv files and dump JSON
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 

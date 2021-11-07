@@ -1,3 +1,4 @@
+use crate::derivations::{Derivation, DerivationOutput};
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
 use nom::character::complete::char;
@@ -6,24 +7,6 @@ use nom::multi::{fold_many0, separated_list0};
 use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::IResult;
 use std::collections::{HashMap, HashSet};
-
-#[derive(Debug, PartialEq)]
-pub struct Derivation {
-    args: Vec<String>,
-    builder: String,
-    env: HashMap<String, String>,
-    input_drvs: HashMap<String, HashSet<String>>,
-    input_srcs: HashSet<String>,
-    outputs: HashMap<String, DerivationOutput>,
-    platform: String,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct DerivationOutput {
-    hash: String,
-    hash_algo: String,
-    path: String,
-}
 
 pub fn parse_derivation(input: &str) -> IResult<&str, Derivation> {
     delimited(tag("Derive("), parse_derivation_args, char(')'))(input)

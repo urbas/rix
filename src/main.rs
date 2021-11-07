@@ -1,18 +1,27 @@
-mod cmd_show_derivations;
+mod cmd;
+mod derivations;
 mod parsers;
 
 use clap::App;
 use colored::*;
 
-use crate::cmd_show_derivations::cmd_show_derivations;
-
 fn main() {
-    App::new("rix")
+    let parsed_args = App::new("rix")
         .version("0.0.1")
         .about("Rix is another nix.")
-        .subcommand(cmd_show_derivations())
+        .subcommand(cmd::show_derivation::cmd())
         .get_matches();
 
-    eprintln!("{}: operation not supported", "error".red());
-    std::process::exit(1);
+    if let Err(error) = dispatch_cmd(&parsed_args) {
+        eprintln!("{}: {}", "error".red(), error);
+        std::process::exit(1);
+    }
+}
+
+fn dispatch_cmd(parsed_args: &clap::ArgMatches) -> Result<(), String> {
+    if let Some(sub_command) = parsed_args.subcommand_matches(cmd::show_derivation::CMD_NAME) {
+        cmd::show_derivation::handle_cmd(sub_command)
+    } else {
+        Err("operation not supported".to_owned())
+    }
 }
