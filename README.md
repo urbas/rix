@@ -9,6 +9,36 @@ A reimplementation of `nix` in Rust.
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
+- 🌘 `nix hash to-base32`
+  - 🌕 stage 1 (MVP): conversions of non-SRI hashes
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
+- 🌘 `nix hash to-base64`
+  - 🌕 stage 1 (MVP): conversions of non-SRI hashes
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
+- 🌘 `nix hash to-base16`
+  - 🌕 stage 1 (MVP): conversions of non-SRI hashes
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
+- 🌑 `nix hash to-sri`
+  - 🌑 stage 1 (MVP)
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
+- 🌑 `nix hash file`
+  - 🌑 stage 1 (MVP)
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
+- 🌑 `nix hash path`
+  - 🌑 stage 1 (MVP)
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
 - 🌑 `nix build`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
@@ -100,11 +130,6 @@ A reimplementation of `nix` in Rust.
   - 🌑 stage 3: full implementation
 
 - 🌑 `nix describe-stores`
-  - 🌑 stage 1 (MVP)
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
-
-- 🌑 `nix hash`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation

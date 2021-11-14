@@ -7,7 +7,7 @@ use std::fs;
 
 pub const CMD_NAME: &str = "show-derivation";
 
-pub fn cmd() -> App<'static, 'static> {
+pub fn cmd<'a>() -> App<'a, 'a> {
     return SubCommand::with_name(CMD_NAME)
         .about("show the contents of a store derivation")
         .arg(Arg::with_name("INSTALLABLES").multiple(true).help(
