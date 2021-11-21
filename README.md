@@ -9,20 +9,20 @@ A reimplementation of `nix` in Rust.
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌘 `nix hash to-base32`
+- 🌕 `nix hash to-base32`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
+  - 🌕 stage 2: most common use cases
+  - 🌕 stage 3: full implementation
 
-- 🌘 `nix hash to-base64`
+- 🌕 `nix hash to-base64`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
+  - 🌕 stage 2: most common use cases
+  - 🌕 stage 3: full implementation
 
-- 🌘 `nix hash to-base16`
+- 🌕 `nix hash to-base16`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
+  - 🌕 stage 2: most common use cases
+  - 🌕 stage 3: full implementation
 
 - 🌑 `nix hash to-sri`
   - 🌑 stage 1 (MVP)

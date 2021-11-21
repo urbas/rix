@@ -1,14 +1,22 @@
-pub fn parse<const N: usize>(hash_str: &str, out_buf: &mut [u8; N]) -> Result<(), String> {
+pub fn parse<const HASH_SIZE: usize>(hash_str: &str, out_buf: &mut [u8]) -> Result<(), String> {
     let hash_str_len = hash_str.as_bytes().len();
-    if hash_str_len == 2 * N {
-        from_base16(hash_str, out_buf)
-    } else if hash_str_len == to_base32_len(N) {
-        from_base32(hash_str, out_buf)
-    } else if hash_str_len == to_base64_len(N) {
-        from_base64(hash_str, out_buf)
+    let out_hash = &mut out_buf[0..HASH_SIZE];
+    if hash_str_len == 2 * HASH_SIZE {
+        from_base16(hash_str, out_hash)
+    } else if hash_str_len == to_base32_len(HASH_SIZE) {
+        from_base32(hash_str, out_hash)
+    } else if hash_str_len == to_base64_len(HASH_SIZE) {
+        from_base64(hash_str, out_hash)
     } else {
         Err(format!("hash '{}' with unexpected length.", hash_str))
     }
+}
+
+pub fn sri_hash_components<'a>(hash_str: &'a str) -> Result<(&'a str, &'a str), String> {
+    hash_str
+        .split_once('-')
+        .or_else(|| hash_str.split_once(':'))
+        .ok_or(format!("Failed to parse '{}'. Not an SRI hash.", hash_str))
 }
 
 pub fn to_base16(bytes: &[u8], out_string: &mut String) {
@@ -19,10 +27,10 @@ pub fn to_base16(bytes: &[u8], out_string: &mut String) {
     }
 }
 
-fn from_base16<const N: usize>(base16_str: &str, out_buf: &mut [u8; N]) -> Result<(), String> {
+fn from_base16(base16_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
     let base16_str_bytes = base16_str.as_bytes();
-    for idx in 0..N {
-        out_buf[idx] = parse_base16_digit(base16_str_bytes[idx * 2])? << 4
+    for idx in 0..out_hash.len() {
+        out_hash[idx] = parse_base16_digit(base16_str_bytes[idx * 2])? << 4
             | parse_base16_digit(base16_str_bytes[idx * 2 + 1])?;
     }
     return Ok(());
@@ -63,19 +71,19 @@ pub fn to_base32(bytes: &[u8], out_string: &mut String) {
     }
 }
 
-fn from_base32<const N: usize>(base32_str: &str, out_buf: &mut [u8; N]) -> Result<(), String> {
+fn from_base32(base32_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
     let base32_str_bytes = base32_str.as_bytes();
     let str_len = base32_str_bytes.len();
-    for idx in 0..to_base32_len(N) {
+    for idx in 0..to_base32_len(out_hash.len()) {
         let digit = parse_base32_digit(base32_str_bytes[str_len - idx - 1])?;
         let b = idx * 5;
         let i = b / 8;
         let j = b % 8;
-        out_buf[i] |= digit << j;
+        out_hash[i] |= digit << j;
 
         let carry = digit.checked_shr(8 - j as u32).unwrap_or(0);
-        if i < N - 1 {
-            out_buf[i + 1] |= carry;
+        if i < out_hash.len() - 1 {
+            out_hash[i + 1] |= carry;
         } else if carry != 0 {
             return Err(format!("Invalid base-32 string '{}'", base32_str));
         }
@@ -142,7 +150,7 @@ fn to_base64_len(bytes_count: usize) -> usize {
     ((4 * bytes_count / 3) + 3) & !3
 }
 
-fn from_base64<const N: usize>(base64_str: &str, out_buf: &mut [u8; N]) -> Result<(), String> {
+fn from_base64(base64_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
     let base64_str_bytes = base64_str.as_bytes();
     let mut d: u32 = 0;
     let mut bits: u32 = 0;
@@ -162,7 +170,7 @@ fn from_base64<const N: usize>(base64_str: &str, out_buf: &mut [u8; N]) -> Resul
         bits += 6;
         d = d << 6 | digit as u32;
         if bits >= 8 {
-            out_buf[byte] = (d >> (bits - 8) & 0xff) as u8;
+            out_hash[byte] = (d >> (bits - 8) & 0xff) as u8;
             bits -= 8;
             byte += 1;
         }
@@ -206,7 +214,7 @@ mod tests {
     #[test]
     fn test_parse_sha256_base16() {
         let mut hash = [0; 32];
-        parse(
+        parse::<32>(
             "d5313862856f7770bdffed2dfe8c417a84f3f6d5e11c3b5c19420f2130766f81",
             &mut hash,
         )
@@ -217,7 +225,7 @@ mod tests {
     #[test]
     fn test_parse_sha256_base32() {
         let mut hash = [0; 32];
-        parse(
+        parse::<32>(
             "10bgfqq223s235f3n771spvg713s866gwbgdzyyp0xvghmi3hcfm",
             &mut hash,
         )
@@ -228,14 +236,14 @@ mod tests {
     #[test]
     fn test_parse_sha256_base64() {
         let mut hash = [0; 32];
-        parse("1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E=", &mut hash).unwrap();
+        parse::<32>("1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E=", &mut hash).unwrap();
         assert_eq!(hash, SHA256_SAMPLE);
     }
     #[test]
     fn test_parse_sha256_invalid() {
         let mut hash = [0; 32];
         assert_eq!(
-            parse("foobar", &mut hash),
+            parse::<32>("foobar", &mut hash),
             Err("hash 'foobar' with unexpected length.".to_owned()),
         );
     }
@@ -243,7 +251,7 @@ mod tests {
     #[test]
     fn test_parse_sha512_base64() {
         let mut hash = [0; 64];
-        parse("+y4ZnePpvWs1fc/LhZRTHkTesbXkyBYuOB+5CyodZqrEuETXi3zOVfpAQIdgC3lXbHLTDG9dQosxR9BhvLKDLQ==", &mut hash).unwrap();
+        parse::<64>("+y4ZnePpvWs1fc/LhZRTHkTesbXkyBYuOB+5CyodZqrEuETXi3zOVfpAQIdgC3lXbHLTDG9dQosxR9BhvLKDLQ==", &mut hash).unwrap();
         assert_eq!(hash, SHA512_SAMPLE);
     }
 
@@ -283,6 +291,20 @@ mod tests {
         assert_eq!(
             from_base64(")", &mut hash),
             Err("Character ')' is not a valid base-64 character.".to_owned()),
+        );
+    }
+
+    #[test]
+    fn test_sri_hash_components() {
+        assert_eq!(sri_hash_components("md5-foobar"), Ok(("md5", "foobar")));
+        assert_eq!(sri_hash_components("sha256:abc"), Ok(("sha256", "abc")),);
+    }
+
+    #[test]
+    fn test_sri_hash_components_fail() {
+        assert_eq!(
+            sri_hash_components("md5foobar"),
+            Err("Failed to parse 'md5foobar'. Not an SRI hash.".to_owned())
         );
     }
 }
