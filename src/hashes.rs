@@ -33,11 +33,21 @@ impl HashType {
     }
 }
 
+impl std::fmt::Display for HashType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hash_type = match self {
+            HashType::Md5 => "md5",
+            HashType::Sha1 => "sha1",
+            HashType::Sha256 => "sha256",
+            HashType::Sha512 => "sha512",
+        };
+        write!(f, "{}", hash_type)
+    }
+}
+
 pub fn parse(hash_str: &str, hash_type: HashType) -> Result<Hash, String> {
     let hash_str_len = hash_str.as_bytes().len();
     let hash_size = hash_type.size();
-    let mut bytes = Vec::new();
-    bytes.resize(hash_size, 0);
     if hash_str_len == 2 * hash_size {
         from_base16(hash_str, hash_type)
     } else if hash_str_len == to_base32_len(hash_size) {
@@ -172,6 +182,10 @@ pub fn from_base64(base64_str: &str, hash_type: HashType) -> Result<Hash, String
         }
     }
     return Ok(Hash { hash_type, bytes });
+}
+
+pub fn to_sri(hash: &Hash) -> String {
+    format!("{}-{}", hash.hash_type, to_base64(&hash))
 }
 
 fn nibble_to_base16(nibble: u8) -> char {

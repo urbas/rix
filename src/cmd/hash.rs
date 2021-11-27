@@ -10,7 +10,8 @@ pub fn cmd<'a>() -> App<'a, 'a> {
         .subcommand(
             to_base_cmd("to-base32").about("convert hashes to the Nix base-32 representation"),
         )
-        .subcommand(to_base_cmd("to-base64").about("convert hashes to base-64 representation"));
+        .subcommand(to_base_cmd("to-base64").about("convert hashes to base-64 representation"))
+        .subcommand(to_base_cmd("to-sri").about("convert hashes to SRI base-64 representation"));
 }
 
 pub fn handle_cmd(parent_args: &ArgMatches) -> Result<(), String> {
@@ -20,6 +21,8 @@ pub fn handle_cmd(parent_args: &ArgMatches) -> Result<(), String> {
         handle_to_base_cmd(args, hashes::to_base32)
     } else if let Some(args) = parent_args.subcommand_matches("to-base64") {
         handle_to_base_cmd(args, hashes::to_base64)
+    } else if let Some(args) = parent_args.subcommand_matches("to-sri") {
+        handle_to_base_cmd(args, hashes::to_sri)
     } else {
         Err("operation not supported".to_owned())
     }

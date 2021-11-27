@@ -24,10 +24,10 @@ A reimplementation of `nix` in Rust.
   - 🌕 stage 2: most common use cases
   - 🌕 stage 3: full implementation
 
-- 🌑 `nix hash to-sri`
-  - 🌑 stage 1 (MVP)
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
+- 🌕 `nix hash to-sri`
+  - 🌕 stage 1 (MVP)
+  - 🌕 stage 2: most common use cases
+  - 🌕 stage 3: full implementation
 
 - 🌑 `nix hash file`
   - 🌑 stage 1 (MVP)
