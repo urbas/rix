@@ -1,12 +1,49 @@
-pub fn parse<const HASH_SIZE: usize>(hash_str: &str, out_buf: &mut [u8]) -> Result<(), String> {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum HashType {
+    Md5,
+    Sha1,
+    Sha256,
+    Sha512,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Hash {
+    pub hash_type: HashType,
+    pub bytes: Vec<u8>,
+}
+
+impl HashType {
+    pub fn size(&self) -> usize {
+        match self {
+            HashType::Md5 => 16,
+            HashType::Sha1 => 20,
+            HashType::Sha256 => 32,
+            HashType::Sha512 => 64,
+        }
+    }
+
+    pub fn from_str(hash_type: &str) -> Option<HashType> {
+        match hash_type {
+            "md5" => Some(HashType::Md5),
+            "sha1" => Some(HashType::Sha1),
+            "sha256" => Some(HashType::Sha256),
+            "sha512" => Some(HashType::Sha512),
+            _ => None,
+        }
+    }
+}
+
+pub fn parse(hash_str: &str, hash_type: HashType) -> Result<Hash, String> {
     let hash_str_len = hash_str.as_bytes().len();
-    let out_hash = &mut out_buf[0..HASH_SIZE];
-    if hash_str_len == 2 * HASH_SIZE {
-        from_base16(hash_str, out_hash)
-    } else if hash_str_len == to_base32_len(HASH_SIZE) {
-        from_base32(hash_str, out_hash)
-    } else if hash_str_len == to_base64_len(HASH_SIZE) {
-        from_base64(hash_str, out_hash)
+    let hash_size = hash_type.size();
+    let mut bytes = Vec::new();
+    bytes.resize(hash_size, 0);
+    if hash_str_len == 2 * hash_size {
+        from_base16(hash_str, hash_type)
+    } else if hash_str_len == to_base32_len(hash_size) {
+        from_base32(hash_str, hash_type)
+    } else if hash_str_len == to_base64_len(hash_size) {
+        from_base64(hash_str, hash_type)
     } else {
         Err(format!("hash '{}' with unexpected length.", hash_str))
     }
@@ -19,21 +56,122 @@ pub fn sri_hash_components<'a>(hash_str: &'a str) -> Result<(&'a str, &'a str), 
         .ok_or(format!("Failed to parse '{}'. Not an SRI hash.", hash_str))
 }
 
-pub fn to_base16(bytes: &[u8], out_string: &mut String) {
-    out_string.reserve(2 * bytes.len());
+pub fn to_base16(hash: &Hash) -> String {
+    let bytes = &hash.bytes;
+    let mut out_string = String::with_capacity(2 * bytes.len());
     for i in 0..bytes.len() {
         out_string.push(nibble_to_base16(bytes[i] >> 4));
         out_string.push(nibble_to_base16(bytes[i] & 0x0f));
     }
+    return out_string;
 }
 
-fn from_base16(base16_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
+pub fn from_base16(base16_str: &str, hash_type: HashType) -> Result<Hash, String> {
     let base16_str_bytes = base16_str.as_bytes();
-    for idx in 0..out_hash.len() {
-        out_hash[idx] = parse_base16_digit(base16_str_bytes[idx * 2])? << 4
+    let mut bytes = vec![0; hash_type.size()];
+    for idx in 0..bytes.len() {
+        bytes[idx] = parse_base16_digit(base16_str_bytes[idx * 2])? << 4
             | parse_base16_digit(base16_str_bytes[idx * 2 + 1])?;
     }
-    return Ok(());
+    return Ok(Hash { hash_type, bytes });
+}
+
+pub fn to_base32(hash: &Hash) -> String {
+    let bytes = &hash.bytes;
+    let bytes_len = bytes.len();
+    let len = to_base32_len(bytes_len);
+    let mut out_string = String::with_capacity(len);
+
+    for idx in (0..len).rev() {
+        let b = idx * 5;
+        let i = b / 8;
+        let j = b % 8;
+        let carry = if i >= bytes_len - 1 {
+            0
+        } else {
+            bytes[i + 1].checked_shl(8 - j as u32).unwrap_or(0)
+        };
+        let c = (bytes[i] >> j) | carry;
+        out_string.push(nibble_to_base32(c & 0x1f));
+    }
+
+    return out_string;
+}
+
+pub fn from_base32(base32_str: &str, hash_type: HashType) -> Result<Hash, String> {
+    let mut bytes = vec![0; hash_type.size()];
+    let base32_str_bytes = base32_str.as_bytes();
+    let str_len = base32_str_bytes.len();
+    for idx in 0..to_base32_len(bytes.len()) {
+        let digit = parse_base32_digit(base32_str_bytes[str_len - idx - 1])?;
+        let b = idx * 5;
+        let i = b / 8;
+        let j = b % 8;
+        bytes[i] |= digit << j;
+
+        let carry = digit.checked_shr(8 - j as u32).unwrap_or(0);
+        if i < bytes.len() - 1 {
+            bytes[i + 1] |= carry;
+        } else if carry != 0 {
+            return Err(format!("Invalid base-32 string '{}'", base32_str));
+        }
+    }
+    return Ok(Hash { hash_type, bytes });
+}
+
+pub fn to_base64(hash: &Hash) -> String {
+    let bytes = &hash.bytes;
+    let mut out_string = String::with_capacity(to_base64_len(bytes.len()));
+    let mut data: usize = 0;
+    let mut nbits: usize = 0;
+
+    for byte in bytes {
+        data = data << 8 | (*byte as usize);
+        nbits += 8;
+        while nbits >= 6 {
+            nbits -= 6;
+            out_string.push(BASE_64_CHARS[data >> nbits & 0x3f] as char);
+        }
+    }
+
+    if nbits > 0 {
+        out_string.push(BASE_64_CHARS[data << (6 - nbits) & 0x3f] as char);
+    }
+
+    while out_string.len() % 4 > 0 {
+        out_string.push('=');
+    }
+
+    return out_string;
+}
+
+pub fn from_base64(base64_str: &str, hash_type: HashType) -> Result<Hash, String> {
+    let mut bytes = vec![0; hash_type.size()];
+    let base64_str_bytes = base64_str.as_bytes();
+    let mut d: u32 = 0;
+    let mut bits: u32 = 0;
+    let mut byte = 0;
+
+    for chr in base64_str_bytes {
+        if *chr == b'=' {
+            break;
+        }
+        let digit = BASE_64_CHAR_VALUES[*chr as usize];
+        if digit == INVALID_CHAR_VALUE {
+            return Err(format!(
+                "Character '{}' is not a valid base-64 character.",
+                *chr as char
+            ));
+        }
+        bits += 6;
+        d = d << 6 | digit as u32;
+        if bits >= 8 {
+            bytes[byte] = (d >> (bits - 8) & 0xff) as u8;
+            bits -= 8;
+            byte += 1;
+        }
+    }
+    return Ok(Hash { hash_type, bytes });
 }
 
 fn nibble_to_base16(nibble: u8) -> char {
@@ -50,45 +188,6 @@ fn parse_base16_digit(chr: u8) -> Result<u8, String> {
         b'a'..=b'f' => Ok(chr - b'a' + 10),
         _ => Err("Not a hex numeral.".to_owned()),
     }
-}
-
-pub fn to_base32(bytes: &[u8], out_string: &mut String) {
-    let bytes_len = bytes.len();
-    let len = to_base32_len(bytes_len);
-    out_string.reserve(len);
-
-    for idx in (0..len).rev() {
-        let b = idx * 5;
-        let i = b / 8;
-        let j = b % 8;
-        let carry = if i >= bytes_len - 1 {
-            0
-        } else {
-            bytes[i + 1].checked_shl(8 - j as u32).unwrap_or(0)
-        };
-        let c = (bytes[i] >> j) | carry;
-        out_string.push(nibble_to_base32(c & 0x1f));
-    }
-}
-
-fn from_base32(base32_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
-    let base32_str_bytes = base32_str.as_bytes();
-    let str_len = base32_str_bytes.len();
-    for idx in 0..to_base32_len(out_hash.len()) {
-        let digit = parse_base32_digit(base32_str_bytes[str_len - idx - 1])?;
-        let b = idx * 5;
-        let i = b / 8;
-        let j = b % 8;
-        out_hash[i] |= digit << j;
-
-        let carry = digit.checked_shr(8 - j as u32).unwrap_or(0);
-        if i < out_hash.len() - 1 {
-            out_hash[i + 1] |= carry;
-        } else if carry != 0 {
-            return Err(format!("Invalid base-32 string '{}'", base32_str));
-        }
-    }
-    return Ok(());
 }
 
 fn to_base32_len(bytes_count: usize) -> usize {
@@ -124,58 +223,8 @@ fn parse_base32_digit(chr: u8) -> Result<u8, String> {
     }
 }
 
-pub fn to_base64(bytes: &[u8], out_string: &mut String) {
-    out_string.reserve(to_base64_len(bytes.len()));
-    let mut data: usize = 0;
-    let mut nbits: usize = 0;
-
-    for byte in bytes {
-        data = data << 8 | (*byte as usize);
-        nbits += 8;
-        while nbits >= 6 {
-            nbits -= 6;
-            out_string.push(BASE_64_CHARS[data >> nbits & 0x3f] as char);
-        }
-    }
-
-    if nbits > 0 {
-        out_string.push(BASE_64_CHARS[data << (6 - nbits) & 0x3f] as char);
-    }
-    while out_string.len() % 4 > 0 {
-        out_string.push('=');
-    }
-}
-
 fn to_base64_len(bytes_count: usize) -> usize {
     ((4 * bytes_count / 3) + 3) & !3
-}
-
-fn from_base64(base64_str: &str, out_hash: &mut [u8]) -> Result<(), String> {
-    let base64_str_bytes = base64_str.as_bytes();
-    let mut d: u32 = 0;
-    let mut bits: u32 = 0;
-    let mut byte = 0;
-
-    for chr in base64_str_bytes {
-        if *chr == b'=' {
-            break;
-        }
-        let digit = BASE_64_CHAR_VALUES[*chr as usize];
-        if digit == INVALID_CHAR_VALUE {
-            return Err(format!(
-                "Character '{}' is not a valid base-64 character.",
-                *chr as char
-            ));
-        }
-        bits += 6;
-        d = d << 6 | digit as u32;
-        if bits >= 8 {
-            out_hash[byte] = (d >> (bits - 8) & 0xff) as u8;
-            bits -= 8;
-            byte += 1;
-        }
-    }
-    return Ok(());
 }
 
 const BASE_64_CHARS: &[u8] =
@@ -197,99 +246,132 @@ const fn compute_base64_char_values() -> [u8; 256] {
 mod tests {
     use super::*;
 
-    const SHA256_SAMPLE: [u8; 32] = [
-        0xd5, 0x31, 0x38, 0x62, 0x85, 0x6f, 0x77, 0x70, 0xbd, 0xff, 0xed, 0x2d, 0xfe, 0x8c, 0x41,
-        0x7a, 0x84, 0xf3, 0xf6, 0xd5, 0xe1, 0x1c, 0x3b, 0x5c, 0x19, 0x42, 0x0f, 0x21, 0x30, 0x76,
-        0x6f, 0x81,
-    ];
+    fn sha256_sample() -> Hash {
+        Hash {
+            hash_type: HashType::Sha256,
+            bytes: vec![
+                0xd5, 0x31, 0x38, 0x62, 0x85, 0x6f, 0x77, 0x70, 0xbd, 0xff, 0xed, 0x2d, 0xfe, 0x8c,
+                0x41, 0x7a, 0x84, 0xf3, 0xf6, 0xd5, 0xe1, 0x1c, 0x3b, 0x5c, 0x19, 0x42, 0x0f, 0x21,
+                0x30, 0x76, 0x6f, 0x81,
+            ],
+        }
+    }
 
-    const SHA512_SAMPLE: [u8; 64] = [
-        0xfb, 0x2e, 0x19, 0x9d, 0xe3, 0xe9, 0xbd, 0x6b, 0x35, 0x7d, 0xcf, 0xcb, 0x85, 0x94, 0x53,
-        0x1e, 0x44, 0xde, 0xb1, 0xb5, 0xe4, 0xc8, 0x16, 0x2e, 0x38, 0x1f, 0xb9, 0x0b, 0x2a, 0x1d,
-        0x66, 0xaa, 0xc4, 0xb8, 0x44, 0xd7, 0x8b, 0x7c, 0xce, 0x55, 0xfa, 0x40, 0x40, 0x87, 0x60,
-        0x0b, 0x79, 0x57, 0x6c, 0x72, 0xd3, 0x0c, 0x6f, 0x5d, 0x42, 0x8b, 0x31, 0x47, 0xd0, 0x61,
-        0xbc, 0xb2, 0x83, 0x2d,
-    ];
+    fn sha512_sample() -> Hash {
+        Hash {
+            hash_type: HashType::Sha512,
+            bytes: vec![
+                0xfb, 0x2e, 0x19, 0x9d, 0xe3, 0xe9, 0xbd, 0x6b, 0x35, 0x7d, 0xcf, 0xcb, 0x85, 0x94,
+                0x53, 0x1e, 0x44, 0xde, 0xb1, 0xb5, 0xe4, 0xc8, 0x16, 0x2e, 0x38, 0x1f, 0xb9, 0x0b,
+                0x2a, 0x1d, 0x66, 0xaa, 0xc4, 0xb8, 0x44, 0xd7, 0x8b, 0x7c, 0xce, 0x55, 0xfa, 0x40,
+                0x40, 0x87, 0x60, 0x0b, 0x79, 0x57, 0x6c, 0x72, 0xd3, 0x0c, 0x6f, 0x5d, 0x42, 0x8b,
+                0x31, 0x47, 0xd0, 0x61, 0xbc, 0xb2, 0x83, 0x2d,
+            ],
+        }
+    }
+
+    #[test]
+    fn test_hash_type_size() {
+        assert_eq!(HashType::Md5.size(), 16);
+        assert_eq!(HashType::Sha1.size(), 20);
+        assert_eq!(HashType::Sha256.size(), 32);
+        assert_eq!(HashType::Sha512.size(), 64);
+    }
+
+    #[test]
+    fn test_hash_type_from_str() {
+        assert_eq!(HashType::from_str("md5"), Some(HashType::Md5));
+        assert_eq!(HashType::from_str("sha1"), Some(HashType::Sha1));
+        assert_eq!(HashType::from_str("sha256"), Some(HashType::Sha256));
+        assert_eq!(HashType::from_str("sha512"), Some(HashType::Sha512));
+        assert_eq!(HashType::from_str("foobar"), None);
+    }
 
     #[test]
     fn test_parse_sha256_base16() {
-        let mut hash = [0; 32];
-        parse::<32>(
-            "d5313862856f7770bdffed2dfe8c417a84f3f6d5e11c3b5c19420f2130766f81",
-            &mut hash,
-        )
-        .unwrap();
-        assert_eq!(hash, SHA256_SAMPLE);
+        assert_eq!(
+            parse(
+                "d5313862856f7770bdffed2dfe8c417a84f3f6d5e11c3b5c19420f2130766f81",
+                HashType::Sha256,
+            ),
+            Ok(sha256_sample()),
+        );
     }
 
     #[test]
     fn test_parse_sha256_base32() {
-        let mut hash = [0; 32];
-        parse::<32>(
-            "10bgfqq223s235f3n771spvg713s866gwbgdzyyp0xvghmi3hcfm",
-            &mut hash,
-        )
-        .unwrap();
-        assert_eq!(hash, SHA256_SAMPLE);
+        assert_eq!(
+            parse(
+                "10bgfqq223s235f3n771spvg713s866gwbgdzyyp0xvghmi3hcfm",
+                HashType::Sha256,
+            ),
+            Ok(sha256_sample()),
+        );
     }
 
     #[test]
     fn test_parse_sha256_base64() {
-        let mut hash = [0; 32];
-        parse::<32>("1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E=", &mut hash).unwrap();
-        assert_eq!(hash, SHA256_SAMPLE);
+        assert_eq!(
+            parse(
+                "1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E=",
+                HashType::Sha256,
+            ),
+            Ok(sha256_sample()),
+        );
     }
+
     #[test]
     fn test_parse_sha256_invalid() {
-        let mut hash = [0; 32];
         assert_eq!(
-            parse::<32>("foobar", &mut hash),
+            parse("foobar", HashType::Sha256),
             Err("hash 'foobar' with unexpected length.".to_owned()),
         );
     }
 
     #[test]
     fn test_parse_sha512_base64() {
-        let mut hash = [0; 64];
-        parse::<64>("+y4ZnePpvWs1fc/LhZRTHkTesbXkyBYuOB+5CyodZqrEuETXi3zOVfpAQIdgC3lXbHLTDG9dQosxR9BhvLKDLQ==", &mut hash).unwrap();
-        assert_eq!(hash, SHA512_SAMPLE);
+        assert_eq!(
+            parse("+y4ZnePpvWs1fc/LhZRTHkTesbXkyBYuOB+5CyodZqrEuETXi3zOVfpAQIdgC3lXbHLTDG9dQosxR9BhvLKDLQ==", HashType::Sha512),
+            Ok(sha512_sample()),
+        );
     }
 
     #[test]
-    fn test_append_base() {
-        let mut encoded_str = String::new();
-        to_base16(&SHA256_SAMPLE, &mut encoded_str);
+    fn test_to_base16() {
         assert_eq!(
-            encoded_str,
+            to_base16(&sha256_sample()),
             "d5313862856f7770bdffed2dfe8c417a84f3f6d5e11c3b5c19420f2130766f81"
         );
+    }
 
-        encoded_str.clear();
-        to_base32(&SHA256_SAMPLE, &mut encoded_str);
+    #[test]
+    fn test_to_base3() {
         assert_eq!(
-            encoded_str,
+            to_base32(&sha256_sample()),
             "10bgfqq223s235f3n771spvg713s866gwbgdzyyp0xvghmi3hcfm"
         );
+    }
 
-        encoded_str.clear();
-        to_base64(&SHA256_SAMPLE, &mut encoded_str);
-        assert_eq!(encoded_str, "1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E=");
+    #[test]
+    fn test_to_base64() {
+        assert_eq!(
+            to_base64(&sha256_sample()),
+            "1TE4YoVvd3C9/+0t/oxBeoTz9tXhHDtcGUIPITB2b4E="
+        );
     }
 
     #[test]
     fn test_from_base32_invalid_char() {
-        let mut hash = [0; 1];
         assert_eq!(
-            from_base32(")", &mut hash),
+            from_base32(")", HashType::Sha256),
             Err("Character ')' is not a valid base-32 character.".to_owned()),
         );
     }
 
     #[test]
     fn test_from_base64_invalid_char() {
-        let mut hash = [0; 2];
         assert_eq!(
-            from_base64(")", &mut hash),
+            from_base64(")", HashType::Sha256),
             Err("Character ')' is not a valid base-64 character.".to_owned()),
         );
     }
