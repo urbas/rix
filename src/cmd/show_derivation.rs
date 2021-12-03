@@ -1,9 +1,7 @@
-use crate::derivations::Derivation;
-use crate::parsers::derivations::parse_derivation;
+use crate::derivations::load_derivation;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use serde::ser::{SerializeMap, Serializer};
 use serde_json;
-use std::fs;
 
 pub const CMD_NAME: &str = "show-derivation";
 
@@ -39,14 +37,6 @@ fn show_derivations<'a>(drv_paths: &mut impl Iterator<Item = &'a str>) -> Result
 
 fn show_derivation(serializer: &mut impl SerializeMap, drv_path: &str) -> Result<(), String> {
     serializer
-        .serialize_entry(drv_path, &to_derivation(drv_path)?)
+        .serialize_entry(drv_path, &load_derivation(drv_path)?)
         .map_err(|_| format!("Failed to serialize derivation '{}' to JSON.", drv_path))
-}
-
-fn to_derivation(drv_path: &str) -> Result<Derivation, String> {
-    let content = fs::read_to_string(drv_path)
-        .map_err(|err| format!("Failed to read '{}': {}", drv_path, err))?;
-    parse_derivation(&content)
-        .map(|(_, derivation)| derivation)
-        .map_err(|err| format!("Failed to parse '{}': {}", drv_path, err))
 }
