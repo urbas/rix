@@ -1,5 +1,7 @@
 # rix
 
+[![builder](https://github.com/urbas/rix/actions/workflows/build.yml/badge.svg)](https://github.com/urbas/rix/actions/workflows/build.yml)
+
 A reimplementation of `nix` in Rust.
 
 # Progress
