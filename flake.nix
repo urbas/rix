@@ -10,12 +10,19 @@
       import nixpkgs { inherit system; }
     );
 
+    packages = nixpkgsForAllSystems;
+
     devShell = forAllSystems (system:
       with nixpkgsForAllSystems.${system};
 
       stdenv.mkDerivation {
         name = "rix";
-        buildInputs = [ nix rustup ];
+        buildInputs = [
+          busybox-sandbox-shell
+          coreutils
+          nix
+          rustup
+        ];
         shellHook = ''
           PATH=$prefix/bin:$PATH
         '';

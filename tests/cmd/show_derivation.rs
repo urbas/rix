@@ -1,8 +1,7 @@
+use crate::test_utils::tmp_file;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use serde_json::Value;
-use std::fs::File;
-use std::io::Write;
 use std::process::Command;
 use std::str;
 use tempfile::tempdir;
@@ -39,11 +38,4 @@ fn show_derivation() {
         serde_json::from_str(str::from_utf8(&cmd_result.get_output().stdout).unwrap()).unwrap();
 
     assert_eq!(output, expected_output);
-}
-
-fn tmp_file(tmp_dir: &tempfile::TempDir, file_name: &str, contents: &str) -> String {
-    let path = tmp_dir.path().join(file_name).to_str().unwrap().to_owned();
-    let mut file = File::create(&path).unwrap();
-    file.write_all(contents.as_bytes()).unwrap();
-    return path;
 }

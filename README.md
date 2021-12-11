@@ -6,172 +6,183 @@ A reimplementation of `nix` in Rust.
 
 # Progress
 
-- 🌘 `nix show-derivation`
+## New sub-commands
+
+- 🌘 `build-derivation`: builds a derivation in a sandbox.
+  - 🌕 stage 0: creates a sandbox.
+  - 🌕 stage 1: builds derivations without dependencies.
+  - 🌑 stage 2: builds derivations with transitive dependencies.
+  - 🌑 stage 3: builds fixed derivations (with internet access).
+  - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies are present).
+
+## Nix sub-commands
+
+- 🌘 `show-derivation`
   - 🌕 stage 1 (MVP): parse .drv files and dump JSON
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌕 `nix hash to-base32`
+- 🌕 `hash to-base32`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
   - 🌕 stage 2: most common use cases
   - 🌕 stage 3: full implementation
 
-- 🌕 `nix hash to-base64`
+- 🌕 `hash to-base64`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
   - 🌕 stage 2: most common use cases
   - 🌕 stage 3: full implementation
 
-- 🌕 `nix hash to-base16`
+- 🌕 `hash to-base16`
   - 🌕 stage 1 (MVP): conversions of non-SRI hashes
   - 🌕 stage 2: most common use cases
   - 🌕 stage 3: full implementation
 
-- 🌕 `nix hash to-sri`
+- 🌕 `hash to-sri`
   - 🌕 stage 1 (MVP)
   - 🌕 stage 2: most common use cases
   - 🌕 stage 3: full implementation
 
-- 🌑 `nix hash file`
+- 🌑 `hash file`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix hash path`
+- 🌑 `hash path`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix build`
+- 🌑 `build`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix develop`
+- 🌑 `develop`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix flake`
+- 🌑 `flake`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix help`
+- 🌑 `help`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix profile`
+- 🌑 `profile`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix repl`
+- 🌑 `repl`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix run`
+- 🌑 `run`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix search`
+- 🌑 `search`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix shell`
+- 🌑 `shell`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix bundle`
+- 🌑 `bundle`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix copy`
+- 🌑 `copy`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix edit`
+- 🌑 `edit`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix eval`
+- 🌑 `eval`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix log`
+- 🌑 `log`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix path-info`
+- 🌑 `path-info`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix registry`
+- 🌑 `registry`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix why-depends`
+- 🌑 `why-depends`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix daemon`
+- 🌑 `daemon`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix describe-stores`
+- 🌑 `describe-stores`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix key`
+- 🌑 `key`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix nar`
+- 🌑 `nar`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix print-dev-env`
+- 🌑 `print-dev-env`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix realisation`
+- 🌑 `realisation`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix show-config`
+- 🌑 `show-config`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix store`
+- 🌑 `store`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix doctor`
+- 🌑 `doctor`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation
 
-- 🌑 `nix upgrade-nix`
+- 🌑 `upgrade-nix`
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
   - 🌑 stage 3: full implementation

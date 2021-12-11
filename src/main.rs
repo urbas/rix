@@ -1,17 +1,17 @@
-mod cmd;
-mod derivations;
-mod hashes;
-mod parsers;
-
 use clap::{App, SubCommand};
 use colored::*;
+use rix::cmd;
 
 fn main() {
     let mut app = App::new("rix")
         .version("0.0.1")
         .about("Rix is another nix.");
 
-    let subcommands = &[&cmd::hash::cmd(), &cmd::show_derivation::cmd()];
+    let subcommands = &[
+        &cmd::build_derivation::cmd(),
+        &cmd::hash::cmd(),
+        &cmd::show_derivation::cmd(),
+    ];
 
     for subcommand in subcommands {
         app = app.subcommand((subcommand.cmd)(SubCommand::with_name(subcommand.name)));
