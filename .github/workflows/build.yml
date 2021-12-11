@@ -8,18 +8,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Nix Setup
+        run: |
+          set -x
+          sudo mkdir /nix
+          sudo chown $USER /nix
+          mkdir -p $HOME/.config/nix
+          echo 'experimental-features = nix-command flakes' > $HOME/.config/nix/nix.conf
+
+      - name: Cache Nix DevEnv
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-nix-dev-env-v5
+        with:
+          path: |
+            /nix
+            /home/runner/.bash_profile
+            /home/runner/.nix-profile
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.lock') }}
+
       - name: Cache Rust Artifacts
         uses: actions/cache@v2
         env:
-          cache-name: cache-rust-artifacts-v9
+          cache-name: cache-rust-artifacts-v3
         with:
           path: |
-            /usr/share/rust/.cargo
+            /home/runner/.rustup
+            /home/runner/.cargo
             target
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/.rust-version') }}
 
       - name: Build
         run: |
+          [ -f /home/runner/.nix-profile/etc/profile.d/nix.sh ] || sh <(curl -L https://nixos.org/nix/install) --no-daemon
+          . /home/runner/.nix-profile/etc/profile.d/nix.sh
+          eval "$(nix print-dev-env)"
+          . scripts/setup-rust-dev-env.sh
+
           set -x
           rustfmt --check **/*.rs
           cargo test
