@@ -1,20 +1,32 @@
+use crate::cmd::{CmdHandler, CmdResult, RixSubCommand};
 use crate::hashes;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
-pub const CMD_NAME: &str = "hash";
-
-pub fn cmd<'a>() -> App<'a, 'a> {
-    return SubCommand::with_name(CMD_NAME)
-        .about("compute and convert cryptographic hashes")
-        .subcommand(to_base_cmd("to-base16").about("convert hashes to base-16 representation"))
-        .subcommand(
-            to_base_cmd("to-base32").about("convert hashes to the Nix base-32 representation"),
-        )
-        .subcommand(to_base_cmd("to-base64").about("convert hashes to base-64 representation"))
-        .subcommand(to_base_cmd("to-sri").about("convert hashes to SRI base-64 representation"));
+pub fn cmd<'a>() -> RixSubCommand<'a> {
+    return RixSubCommand {
+        name: "hash",
+        handler: &(handle_cmd as CmdHandler),
+        cmd: |subcommand| {
+            subcommand
+                .about("compute and convert cryptographic hashes")
+                .subcommand(
+                    to_base_cmd("to-base16").about("convert hashes to base-16 representation"),
+                )
+                .subcommand(
+                    to_base_cmd("to-base32")
+                        .about("convert hashes to the Nix base-32 representation"),
+                )
+                .subcommand(
+                    to_base_cmd("to-base64").about("convert hashes to base-64 representation"),
+                )
+                .subcommand(
+                    to_base_cmd("to-sri").about("convert hashes to SRI base-64 representation"),
+                )
+        },
+    };
 }
 
-pub fn handle_cmd(parent_args: &ArgMatches) -> Result<(), String> {
+pub fn handle_cmd(parent_args: &ArgMatches) -> CmdResult {
     if let Some(args) = parent_args.subcommand_matches("to-base16") {
         handle_to_base_cmd(args, hashes::to_base16)
     } else if let Some(args) = parent_args.subcommand_matches("to-base32") {
@@ -45,7 +57,7 @@ fn to_base_cmd(name: &str) -> App {
         )
 }
 
-fn handle_to_base_cmd<F>(args: &clap::ArgMatches, to_base_fn: F) -> Result<(), String>
+fn handle_to_base_cmd<F>(args: &clap::ArgMatches, to_base_fn: F) -> CmdResult
 where
     F: Fn(&hashes::Hash) -> String,
 {
@@ -62,7 +74,7 @@ where
     return Err("hash type not supported".to_owned());
 }
 
-fn sri_to_base<F>(hash_strs: &mut clap::Values, to_base_fn: F) -> Result<(), String>
+fn sri_to_base<F>(hash_strs: &mut clap::Values, to_base_fn: F) -> CmdResult
 where
     F: Fn(&hashes::Hash) -> String,
 {
@@ -75,7 +87,7 @@ where
     })
 }
 
-fn print_hash<F>(hash_str: &str, hash_type: hashes::HashType, to_base_fn: F) -> Result<(), String>
+fn print_hash<F>(hash_str: &str, hash_type: hashes::HashType, to_base_fn: F) -> CmdResult
 where
     F: Fn(&hashes::Hash) -> String,
 {

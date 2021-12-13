@@ -1,26 +1,31 @@
+use crate::cmd::{CmdHandler, CmdResult, RixSubCommand};
 use crate::derivations::load_derivation;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{Arg, ArgMatches};
 use serde::ser::{SerializeMap, Serializer};
 use serde_json;
 
-pub const CMD_NAME: &str = "show-derivation";
-
-pub fn cmd<'a>() -> App<'a, 'a> {
-    return SubCommand::with_name(CMD_NAME)
-        .about("show the contents of a store derivation")
-        .arg(Arg::with_name("INSTALLABLES").multiple(true).help(
-            "A list of derivation files. Other types of installables are not yet supported.",
-        ));
+pub fn cmd<'a>() -> RixSubCommand<'a> {
+    return RixSubCommand {
+        name: "show-derivation",
+        handler: &(handle_cmd as CmdHandler),
+        cmd: |subcommand| {
+            subcommand
+                .about("show the contents of a store derivation")
+                .arg(Arg::with_name("INSTALLABLES").multiple(true).help(
+                "A list of derivation files. Other types of installables are not yet supported.",
+            ))
+        },
+    };
 }
 
-pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
+pub fn handle_cmd(parsed_args: &ArgMatches) -> CmdResult {
     let mut installables = parsed_args
         .values_of("INSTALLABLES")
         .ok_or("Please specify some derivation files.")?;
     show_derivations(&mut installables)
 }
 
-fn show_derivations<'a>(drv_paths: &mut impl Iterator<Item = &'a str>) -> Result<(), String> {
+fn show_derivations<'a>(drv_paths: &mut impl Iterator<Item = &'a str>) -> CmdResult {
     let mut json_serializer = serde_json::Serializer::new(std::io::stdout());
     let mut map_serializer = json_serializer
         .serialize_map(None)
@@ -35,7 +40,7 @@ fn show_derivations<'a>(drv_paths: &mut impl Iterator<Item = &'a str>) -> Result
     error_maybe
 }
 
-fn show_derivation(serializer: &mut impl SerializeMap, drv_path: &str) -> Result<(), String> {
+fn show_derivation(serializer: &mut impl SerializeMap, drv_path: &str) -> CmdResult {
     serializer
         .serialize_entry(drv_path, &load_derivation(drv_path)?)
         .map_err(|_| format!("Failed to serialize derivation '{}' to JSON.", drv_path))
