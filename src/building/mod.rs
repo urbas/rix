@@ -75,6 +75,12 @@ pub fn build_derivation_sandboxed(
 }
 
 fn enter_sandbox(derivation: &Derivation, build_dir: &Path) -> Result<(), String> {
+    // Collect all derivation inputs:
+    // [
+    //      load_derivation(drv_path).outputs[drv_output]
+    //      for drv_path, drv_outputs in derivation.input_drvs.items()
+    //      for drv_output in drv_outputs
+    // ]
     mount_paths(derivation.input_srcs.iter().map(Path::new), build_dir)?;
     pivot_root(build_dir)
 }

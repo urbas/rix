@@ -53,6 +53,28 @@ fn test_build_derivation_sandboxed_missing_deps() {
     );
 }
 
+#[test]
+fn test_build_derivation_sandboxed_drv_deps() {
+    let tmp_dir = tempdir().unwrap();
+    let build_dir = tempdir().unwrap();
+    let builder = &get_pkg_closure(".#busybox-sandbox-shell")[0];
+    let mut derivation = derivation_with_deps(
+        &tmp_dir,
+        Path::new("/output"),
+        "mkdir $out && touch $out/hello",
+        builder,
+        &vec![],
+    );
+    derivation.input_drvs = vec![
+        (get_derivation_path(".#coreutils"), vec!["out".to_owned()].into_iter().collect())
+    ].into_iter().collect();
+    assert_eq!(
+        building::build_derivation_sandboxed(&derivation, &build_dir.path()).unwrap(),
+        0
+    );
+    assert!(build_dir.path().join("output/hello").exists());
+}
+
 fn simple_derivation(
     tmp_dir: &tempfile::TempDir,
     out_dir: &Path,
@@ -103,7 +125,10 @@ fn get_pkg_closure(nix_flake_attr: &str) -> Vec<String> {
     let drv_out = Command::new("nix")
         .args(&["path-info", "-r", nix_flake_attr])
         .output()
-        .expect("failed to get the derivation");
+        .expect(&format!(
+            "failed to get the closure of dependencies for {}",
+            nix_flake_attr
+        ));
 
     str::from_utf8(&drv_out.stdout)
         .unwrap()
@@ -111,4 +136,19 @@ fn get_pkg_closure(nix_flake_attr: &str) -> Vec<String> {
         .lines()
         .map(String::from)
         .collect()
+}
+
+fn get_derivation_path(nix_flake_attr: &str) -> String {
+    let drv_out = Command::new("nix")
+        .args(&["show-derivation", nix_flake_attr])
+        .output()
+        .expect(&format!(
+            "failed to get the derivation of {}",
+            nix_flake_attr
+        ));
+
+    let drv: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(str::from_utf8(&drv_out.stdout).unwrap()).unwrap();
+
+    drv.keys().next().unwrap().to_owned()
 }
