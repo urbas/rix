@@ -1,0 +1,5 @@
+{
+  "rust-analyzer.server.extraEnv": {
+    "RUSTUP_TOOLCHAIN": "1.60.0",
+  },
+}
