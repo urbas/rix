@@ -25,7 +25,7 @@ jobs:
             /nix
             /home/runner/.bash_profile
             /home/runner/.nix-profile
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.lock') }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.nix', '**/flake.lock') }}
 
       - name: Cache Rust Artifacts
         uses: actions/cache@v2
@@ -36,14 +36,13 @@ jobs:
             /home/runner/.rustup
             /home/runner/.cargo
             target
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/.rust-version') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml') }}
 
       - name: Build
         run: |
           [ -f /home/runner/.nix-profile/etc/profile.d/nix.sh ] || sh <(curl -L https://nixos.org/nix/install) --no-daemon
           . /home/runner/.nix-profile/etc/profile.d/nix.sh
           eval "$(nix print-dev-env)"
-          . scripts/setup-rust-dev-env.sh
 
           set -x
           rustfmt --check **/*.rs
