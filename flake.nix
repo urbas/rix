@@ -23,9 +23,6 @@
           nix
           rustup
         ];
-        shellHook = ''
-          PATH=$prefix/bin:$PATH
-        '';
       }
     );
   };
