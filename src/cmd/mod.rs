@@ -8,6 +8,6 @@ type CmdHandler = fn(&ArgMatches) -> CmdResult;
 
 pub struct RixSubCommand<'a> {
     pub name: &'a str,
-    pub cmd: fn(App<'a, 'a>) -> App<'a, 'a>,
+    pub cmd: fn(App<'a>) -> App<'a>,
     pub handler: &'a CmdHandler,
 }

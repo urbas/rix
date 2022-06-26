@@ -12,15 +12,15 @@ name = "rix"
 path = "src/main.rs"
 
 [dev-dependencies]
-assert_cmd = "0.12"
-predicates = "2"
+assert_cmd = "*"
+predicates = "*"
 
 [dependencies]
-clap = "2"
-colored = "2"
-libc = "0"
-nix = "0"
-nom = "7"
-serde = "1"
-serde_json = "1"
-tempfile = "3"
+clap = "*"
+colored = "*"
+libc = "*"
+nix = "*"
+nom = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"
+tempfile = "*"
