@@ -1,6 +1,6 @@
 use crate::cmd::{CmdHandler, CmdResult, RixSubCommand};
 use crate::hashes;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{Arg, ArgMatches, Command, SubCommand};
 
 pub fn cmd<'a>() -> RixSubCommand<'a> {
     return RixSubCommand {
@@ -40,7 +40,7 @@ pub fn handle_cmd(parent_args: &ArgMatches) -> CmdResult {
     }
 }
 
-fn to_base_cmd(name: &str) -> App {
+fn to_base_cmd(name: &str) -> Command {
     SubCommand::with_name(name)
         .arg(
             Arg::with_name("HASHES")

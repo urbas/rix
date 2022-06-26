@@ -1,9 +1,9 @@
-use clap::{App, SubCommand};
+use clap::Command;
 use colored::*;
 use rix::cmd;
 
 fn main() {
-    let mut app = App::new("rix")
+    let mut cmd = Command::new("rix")
         .version("0.0.1")
         .about("Rix is another nix.");
 
@@ -14,10 +14,10 @@ fn main() {
     ];
 
     for subcommand in subcommands {
-        app = app.subcommand((subcommand.cmd)(SubCommand::with_name(subcommand.name)));
+        cmd = cmd.subcommand((subcommand.cmd)(Command::new(subcommand.name)));
     }
 
-    if let Err(error) = dispatch_cmd(&app.get_matches(), subcommands) {
+    if let Err(error) = dispatch_cmd(&cmd.get_matches(), subcommands) {
         eprintln!("{}: {}", "error".red(), error);
         std::process::exit(1);
     }
