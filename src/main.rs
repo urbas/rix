@@ -1,8 +1,8 @@
 use clap::Command;
-use colored::*;
 use rix::cmd;
+use std::process::ExitCode;
 
-fn main() {
+fn main() -> ExitCode {
     let mut cmd = Command::new("rix")
         .version("0.0.1")
         .about("Rix is another nix.");
@@ -17,20 +17,15 @@ fn main() {
         cmd = cmd.subcommand((subcommand.cmd)(Command::new(subcommand.name)));
     }
 
-    if let Err(error) = dispatch_cmd(&cmd.get_matches(), subcommands) {
-        eprintln!("{}: {}", "error".red(), error);
-        std::process::exit(1);
-    }
+    dispatch_cmd(&cmd.get_matches(), subcommands)
 }
 
-fn dispatch_cmd(
-    parsed_args: &clap::ArgMatches,
-    subcommands: &[&cmd::RixSubCommand],
-) -> Result<(), String> {
+fn dispatch_cmd(parsed_args: &clap::ArgMatches, subcommands: &[&cmd::RixSubCommand]) -> ExitCode {
     for subcommand in subcommands {
         if let Some(subcommand_args) = parsed_args.subcommand_matches(subcommand.name) {
-            return (subcommand.handler)(subcommand_args);
+            return (subcommand.handler)(subcommand_args)
+                .map_or_else(|err| err, |_| ExitCode::SUCCESS);
         }
     }
-    Err("operation not supported".to_owned())
+    cmd::print_and_err("operation not supported")
 }

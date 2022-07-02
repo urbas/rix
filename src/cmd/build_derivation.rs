@@ -1,5 +1,5 @@
 use crate::building;
-use crate::cmd::{CmdHandler, CmdResult, RixSubCommand};
+use crate::cmd::{to_cmd_err, CmdHandler, RixSubCommand};
 use crate::derivations;
 use clap::{Arg, ArgMatches};
 use std::path::PathBuf;
@@ -8,7 +8,7 @@ use tempfile::tempdir;
 pub fn cmd<'a>() -> RixSubCommand<'a> {
     return RixSubCommand {
         name: "build-derivation",
-        handler: &(handle_cmd as CmdHandler),
+        handler: &((|args| to_cmd_err(handle_cmd(args))) as CmdHandler),
         cmd: |subcommand| {
             subcommand
             .about("builds the derivation assuming all dependencies are present in the store and won't be GC'd")
@@ -19,7 +19,7 @@ pub fn cmd<'a>() -> RixSubCommand<'a> {
     };
 }
 
-pub fn handle_cmd(parsed_args: &ArgMatches) -> CmdResult {
+pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let derivation_path = parsed_args
         .value_of("DERIVATION")
         .ok_or("You must specify a derivation.")?;
