@@ -24,3 +24,4 @@ nom = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 tempfile = "*"
+uuid = { version = "*", features = ["v4"] }
