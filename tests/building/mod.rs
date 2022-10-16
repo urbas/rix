@@ -1,5 +1,5 @@
 use crate::test_utils::tmp_file;
-use rix::building;
+use rix::building::{build_derivation_command, build_derivation_sandboxed, BuildConfig};
 use rix::derivations::{Derivation, DerivationOutput};
 use std::collections::HashMap;
 use std::fs;
@@ -14,7 +14,7 @@ fn test_build_derivation() {
     let tmp_dir = tempdir().unwrap();
     let out_dir = tmp_dir.path().join("output");
     let derivation = simple_derivation(&tmp_dir, &out_dir, "mkdir $out && touch $out/hello");
-    building::build_derivation_command(&derivation, &tmp_dir.path())
+    build_derivation_command(&derivation, &tmp_dir.path())
         .output()
         .unwrap();
     assert!(out_dir.join("hello").exists());
@@ -30,10 +30,35 @@ fn test_build_derivation_sandboxed_success() {
         "mkdir -p $out && touch $out/hello",
     );
     assert_eq!(
-        building::build_derivation_sandboxed(&derivation, &build_dir.path()).unwrap(),
+        build_derivation_sandboxed(&BuildConfig::new(&derivation, &build_dir.path())).unwrap(),
         0
     );
     assert!(build_dir.path().join("output/hello").exists());
+}
+
+#[test]
+fn test_build_derivation_sandboxed_redirect_to_file() {
+    let tmp_dir = tempdir().unwrap();
+    let build_dir = tempdir().unwrap();
+    let derivation = simple_derivation(
+        &tmp_dir,
+        Path::new("/output"),
+        "echo hello world && echo broken world 1>&2",
+    );
+    let stdout_file = fs::File::create(tmp_dir.path().join("stdout")).unwrap();
+    let stderr_file = fs::File::create(tmp_dir.path().join("stderr")).unwrap();
+    let mut build_config = BuildConfig::new(&derivation, &build_dir.path());
+    build_config.stdout_to_file(&stdout_file);
+    build_config.stderr_to_file(&stderr_file);
+    assert_eq!(build_derivation_sandboxed(&build_config).unwrap(), 0);
+    assert_eq!(
+        fs::read_to_string(tmp_dir.path().join("stdout")).unwrap(),
+        "hello world\n"
+    );
+    assert_eq!(
+        fs::read_to_string(tmp_dir.path().join("stderr")).unwrap(),
+        "broken world\n"
+    );
 }
 
 #[test]
@@ -48,7 +73,7 @@ fn test_build_derivation_sandboxed_missing_deps() {
         &vec![],
     );
     assert_ne!(
-        building::build_derivation_sandboxed(&derivation, &tmp_dir.path()).unwrap(),
+        build_derivation_sandboxed(&BuildConfig::new(&derivation, &tmp_dir.path())).unwrap(),
         0
     );
 }
