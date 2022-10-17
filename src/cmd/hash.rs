@@ -1,11 +1,11 @@
-use crate::cmd::{to_cmd_err, CmdHandler, RixSubCommand};
+use crate::cmd::{to_cmd_err, RixSubCommand};
 use crate::hashes;
 use clap::{Arg, ArgMatches, Command, SubCommand};
 
 pub fn cmd<'a>() -> RixSubCommand<'a> {
     return RixSubCommand {
         name: "hash",
-        handler: &((|args| to_cmd_err(handle_cmd(args))) as CmdHandler),
+        handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
             subcommand
                 .about("compute and convert cryptographic hashes")
@@ -69,12 +69,12 @@ where
     if let Some(hash_type) = hashes::HashType::from_str(type_arg) {
         return hash_strs.try_for_each(|hash_str| print_hash(hash_str, hash_type, &to_base_fn));
     } else if type_arg == "sri" {
-        return sri_to_base(&mut hash_strs, &to_base_fn);
+        return sri_to_base(hash_strs, &to_base_fn);
     }
     return Err("hash type not supported".to_owned());
 }
 
-fn sri_to_base<F>(hash_strs: &mut clap::Values, to_base_fn: F) -> Result<(), String>
+fn sri_to_base<F>(mut hash_strs: clap::Values, to_base_fn: F) -> Result<(), String>
 where
     F: Fn(&hashes::Hash) -> String,
 {
