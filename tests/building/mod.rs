@@ -78,7 +78,7 @@ fn test_build_derivation_sandboxed_missing_deps() {
     );
 }
 
-fn simple_derivation(
+pub fn simple_derivation(
     tmp_dir: &tempfile::TempDir,
     out_dir: &Path,
     builder_script: &str,
@@ -88,7 +88,7 @@ fn simple_derivation(
     return derivation_with_deps(tmp_dir, out_dir, builder_script, &builder[0], &coreutils);
 }
 
-fn derivation_with_deps(
+pub fn derivation_with_deps(
     src_dir: &tempfile::TempDir,
     out_dir: &Path,
     builder_script: &str,
@@ -124,7 +124,7 @@ fn derivation_with_deps(
     }
 }
 
-fn get_pkg_closure(nix_flake_attr: &str) -> Vec<String> {
+pub fn get_pkg_closure(nix_flake_attr: &str) -> Vec<String> {
     let drv_out = Command::new("nix")
         .args(&["path-info", "-r", nix_flake_attr])
         .output()

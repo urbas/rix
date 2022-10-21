@@ -16,6 +16,7 @@ pub fn cmd<'a>() -> RixSubCommand<'a> {
             .arg(Arg::with_name("DERIVATION").required(true).help(
                 "The path of the derivation to build.",
             ))
+            .arg(Arg::new("build-dir").long("build-dir").action(ArgAction::Set).help("The directory in which to run the build process."))
             .arg(Arg::new("stdout").long("stdout").action(ArgAction::Set).help("The file to which to redirect the standard output of the build"))
             .arg(Arg::new("stderr").long("stderr").action(ArgAction::Set).help("The file to which to redirect the error output of the build"))
         },
@@ -26,8 +27,9 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let derivation_path = parsed_args
         .value_of("DERIVATION")
         .ok_or("You must specify a derivation.")?;
-    let derivation = derivations::load_derivation(derivation_path)?;
-    let build_dir = create_build_dir()?;
+    let build_dir = parsed_args
+        .value_of("build-dir")
+        .map_or_else(create_build_dir, |str| Ok(PathBuf::from(str)))?;
     let stdout_file = parsed_args
         .value_of("stdout")
         .map(File::create)
@@ -38,6 +40,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
         .map(File::create)
         .transpose()
         .map_err(|err| format!("Could not create the stderr file. Error: {}", err))?;
+    let derivation = derivations::load_derivation(derivation_path)?;
     let mut build_config = BuildConfig::new(&derivation, &build_dir);
     if let Some(stdout_file) = stdout_file.as_ref() {
         build_config.stdout_to_file(stdout_file);
