@@ -45,5 +45,5 @@ jobs:
           eval "$(nix print-dev-env)"
 
           set -x
-          rustfmt --check **/*.rs
+          cargo fmt --check
           cargo test
