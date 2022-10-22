@@ -13,14 +13,14 @@ pub struct Derivation {
     pub input_drvs: HashMap<String, HashSet<String>>,
     pub input_srcs: HashSet<String>,
     pub outputs: HashMap<String, DerivationOutput>,
-    pub platform: String,
+    pub system: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DerivationOutput {
-    pub hash: String,
-    pub hash_algo: String,
+    pub hash: Option<String>,
+    pub hash_algo: Option<String>,
     pub path: String,
 }
 
@@ -40,7 +40,7 @@ pub fn save_derivation(writer: &mut impl Write, derivation: &Derivation) -> std:
     write!(writer, ",")?;
     write_iter(writer, &mut derivation.input_srcs.iter(), write_string)?;
     write!(writer, ",")?;
-    write_string(writer, &derivation.platform)?;
+    write_string(writer, &derivation.system)?;
     write!(writer, ",")?;
     write_string(writer, &derivation.builder)?;
     write!(writer, ",")?;
@@ -114,9 +114,9 @@ fn write_output(
     write!(writer, ",")?;
     write_string(writer, &output.path)?;
     write!(writer, ",")?;
-    write_string(writer, &output.hash_algo)?;
+    write_string(writer, output.hash_algo.as_ref().unwrap_or(&String::new()))?;
     write!(writer, ",")?;
-    write_string(writer, &output.hash)?;
+    write_string(writer, output.hash.as_ref().unwrap_or(&String::new()))?;
     write!(writer, ")")
 }
 
@@ -159,12 +159,12 @@ mod tests {
             outputs: HashMap::from([(
                 "out".to_owned(),
                 DerivationOutput {
-                    hash: "".to_owned(),
-                    hash_algo: "".to_owned(),
+                    hash: None,
+                    hash_algo: Some("foo".to_owned()),
                     path: "/foo.out".to_owned(),
                 },
             )]),
-            platform: "foo-x64".to_owned(),
+            system: "foo-x64".to_owned(),
         }
     }
 }
