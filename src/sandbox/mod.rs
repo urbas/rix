@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 pub fn run_in_sandbox(
     new_root: &Path,
-    prepare_sandbox: impl Fn(&Path) -> Result<(), String>,
+    prepare_sandbox: impl Fn() -> Result<(), String>,
     run: impl Fn() -> isize,
 ) -> Result<i32, String> {
     let forked_logic = || -> isize {
-        if let Err(err) = prepare_sandbox(new_root) {
+        if let Err(err) = prepare_sandbox() {
             eprintln!("Error preparing the sandbox: {}", err);
             return 255;
         }
@@ -54,22 +54,26 @@ pub fn mount_paths<'a>(
     new_root: &Path,
 ) -> Result<(), String> {
     for path in paths {
-        let target_path = prepare_mount_path(path, new_root)?;
-        mount::mount(
-            Some(path),
-            &target_path,
-            None::<&str>,
-            mount::MsFlags::MS_BIND | mount::MsFlags::MS_REC,
-            None::<&str>,
-        )
-        .map_err(|e| {
-            format!(
-                "Failed to bind mount {:?} to {:?}. Error: {:?}",
-                path, target_path, e
-            )
-        })?;
+        mount_path(path, new_root)?;
     }
     Ok(())
+}
+
+pub fn mount_path(path: &Path, new_root: &Path) -> Result<(), String> {
+    let target_path = prepare_mount_path(path, new_root)?;
+    mount::mount(
+        Some(path),
+        &target_path,
+        None::<&str>,
+        mount::MsFlags::MS_BIND | mount::MsFlags::MS_REC,
+        None::<&str>,
+    )
+    .map_err(|e| {
+        format!(
+            "Failed to bind mount {:?} to {:?}. Error: {:?}",
+            path, target_path, e
+        )
+    })
 }
 
 pub fn pivot_root(new_root: &Path) -> Result<(), String> {

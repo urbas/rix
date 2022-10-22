@@ -1,7 +1,7 @@
-use crate::derivations::Derivation;
-use crate::sandbox::{mount_paths, run_in_sandbox};
+use crate::derivations::{load_derivation, Derivation};
+use crate::sandbox::{mount_path, mount_paths, run_in_sandbox};
 use std::fs::File;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -41,21 +41,8 @@ pub fn build_derivation_sandboxed(config: &BuildConfig) -> Result<i32, String> {
     // wrong and we failed to execute the builder
     run_in_sandbox(
         config.build_dir,
-        |new_root| mount_paths(config.derivation.input_srcs.iter().map(Path::new), new_root),
-        || {
-            let mut cmd = build_derivation_command(&config.derivation, &Path::new("/"));
-            if let Some(stdout_fd) = stdout_fd {
-                cmd.stdout(unsafe { Stdio::from_raw_fd(stdout_fd) });
-            }
-            if let Some(stderr_fd) = stderr_fd {
-                cmd.stderr(unsafe { Stdio::from_raw_fd(stderr_fd) });
-            }
-            let exec_error = cmd.exec();
-            // we should never get here because we exec into the builder above (i.e. the builder
-            // process takes over). So, it's an error no matter what if we get here.
-            eprintln!("Error executing builder: {}", exec_error);
-            255
-        },
+        || prepare_sandbox(config),
+        || run_build(config, stdout_fd, stderr_fd),
     )
 }
 
@@ -66,4 +53,38 @@ pub fn build_derivation_command(derivation: &Derivation, build_dir: &Path) -> Co
         .envs(&derivation.env)
         .current_dir(build_dir);
     cmd
+}
+
+fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
+    for (drv_path, outputs) in &config.derivation.input_drvs {
+        let derivation = load_derivation(drv_path)?;
+        for output in outputs {
+            let drv_output = derivation.outputs.get(output).ok_or_else(|| {
+                format!(
+                    "Could not find output '{}' of derivation {:?}",
+                    output, drv_path
+                )
+            })?;
+            mount_path(Path::new(&drv_output.path), config.build_dir)?;
+        }
+    }
+    mount_paths(
+        config.derivation.input_srcs.iter().map(Path::new),
+        config.build_dir,
+    )
+}
+
+fn run_build(config: &BuildConfig, stdout_fd: Option<RawFd>, stderr_fd: Option<RawFd>) -> isize {
+    let mut cmd = build_derivation_command(&config.derivation, &Path::new("/"));
+    if let Some(stdout_fd) = stdout_fd {
+        cmd.stdout(unsafe { Stdio::from_raw_fd(stdout_fd) });
+    }
+    if let Some(stderr_fd) = stderr_fd {
+        cmd.stderr(unsafe { Stdio::from_raw_fd(stderr_fd) });
+    }
+    let exec_error = cmd.exec();
+    // we should never get here because we exec into the builder above (i.e. the builder
+    // process takes over). So, it's an error no matter what if we get here.
+    eprintln!("Error executing builder: {}", exec_error);
+    255
 }

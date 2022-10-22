@@ -13,7 +13,7 @@ pub fn parse_derivation(input: &str) -> IResult<&str, Derivation> {
 }
 
 fn parse_derivation_args(input: &str) -> IResult<&str, Derivation> {
-    let (input, (outputs, _, input_drvs, _, input_srcs, _, platform, _, builder, _, args, _, env)) =
+    let (input, (outputs, _, input_drvs, _, input_srcs, _, system, _, builder, _, args, _, env)) =
         tuple((
             parse_derivation_outputs,
             char(','),
@@ -38,7 +38,7 @@ fn parse_derivation_args(input: &str) -> IResult<&str, Derivation> {
             input_drvs,
             input_srcs,
             outputs,
-            platform,
+            system,
         },
     ))
 }
@@ -72,9 +72,13 @@ fn parse_derivation_output(input: &str) -> IResult<&str, (String, DerivationOutp
         (
             derivation_name,
             DerivationOutput {
-                hash,
-                hash_algo,
-                path,
+                hash: if hash.is_empty() { None } else { Some(hash) },
+                hash_algo: if hash_algo.is_empty() {
+                    None
+                } else {
+                    Some(hash_algo)
+                },
+                path: path,
             },
         ),
     ))
@@ -209,7 +213,7 @@ mod tests {
             outputs: vec![("out".to_owned(), to_drv_out("sha256", "abc", "/foo"))]
                 .into_iter()
                 .collect(),
-            platform: "x86_64-linux".to_owned(),
+            system: "x86_64-linux".to_owned(),
         };
         assert_eq!(
             parse_derivation(
@@ -310,8 +314,8 @@ mod tests {
 
     fn to_drv_out(hash_algo: &str, hash: &str, path: &str) -> DerivationOutput {
         DerivationOutput {
-            hash: hash.to_owned(),
-            hash_algo: hash_algo.to_owned(),
+            hash: Some(hash.to_owned()),
+            hash_algo: Some(hash_algo.to_owned()),
             path: path.to_owned(),
         }
     }
