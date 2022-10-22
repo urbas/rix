@@ -5,9 +5,9 @@ use clap::{ArgMatches, Command};
 use colored::*;
 use std::process::ExitCode;
 
-pub struct RixSubCommand<'a> {
-    pub name: &'a str,
-    pub cmd: fn(Command<'a>) -> Command<'a>,
+pub struct RixSubCommand {
+    pub name: &'static str,
+    pub cmd: fn(Command) -> Command,
     pub handler: fn(&ArgMatches) -> Result<(), ExitCode>,
 }
 

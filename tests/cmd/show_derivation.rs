@@ -13,7 +13,7 @@ fn show_derivation_help() {
         .args(["show-derivation", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("USAGE:"));
+        .stdout(predicate::str::contains("Usage:"));
 }
 
 #[test]

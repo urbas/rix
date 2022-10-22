@@ -6,14 +6,14 @@ use std::fs::File;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-pub fn cmd<'a>() -> RixSubCommand<'a> {
+pub fn cmd() -> RixSubCommand {
     return RixSubCommand {
         name: "build-derivation",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
             subcommand
             .about("builds the derivation assuming all dependencies are present in the store and won't be GC'd")
-            .arg(Arg::with_name("DERIVATION").required(true).help(
+            .arg(Arg::new("DERIVATION").required(true).help(
                 "The path of the derivation to build.",
             ))
             .arg(Arg::new("build-dir").long("build-dir").action(ArgAction::Set).help("The directory in which to run the build process."))
@@ -25,18 +25,18 @@ pub fn cmd<'a>() -> RixSubCommand<'a> {
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let derivation_path = parsed_args
-        .value_of("DERIVATION")
+        .get_one::<String>("DERIVATION")
         .ok_or("You must specify a derivation.")?;
     let build_dir = parsed_args
-        .value_of("build-dir")
+        .get_one::<String>("build-dir")
         .map_or_else(create_build_dir, |str| Ok(PathBuf::from(str)))?;
     let stdout_file = parsed_args
-        .value_of("stdout")
+        .get_one::<String>("stdout")
         .map(File::create)
         .transpose()
         .map_err(|err| format!("Could not create the stdout file. Error: {}", err))?;
     let stderr_file = parsed_args
-        .value_of("stderr")
+        .get_one::<String>("stderr")
         .map(File::create)
         .transpose()
         .map_err(|err| format!("Could not create the stderr file. Error: {}", err))?;

@@ -1,8 +1,8 @@
 use crate::cmd::{to_cmd_err, RixSubCommand};
 use crate::hashes;
-use clap::{Arg, ArgMatches, Command, SubCommand};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 
-pub fn cmd<'a>() -> RixSubCommand<'a> {
+pub fn cmd() -> RixSubCommand {
     return RixSubCommand {
         name: "hash",
         handler: |args| to_cmd_err(handle_cmd(args)),
@@ -40,20 +40,19 @@ pub fn handle_cmd(parent_args: &ArgMatches) -> Result<(), String> {
     }
 }
 
-fn to_base_cmd(name: &str) -> Command {
-    SubCommand::with_name(name)
+fn to_base_cmd(name: &'static str) -> Command {
+    Command::new(name)
         .arg(
-            Arg::with_name("HASHES")
-                .multiple(true)
+            Arg::new("HASHES")
+                .action(ArgAction::Append)
                 .help("A list of hashes to convert."),
         )
         .arg(
-            Arg::with_name("type")
+            Arg::new("type")
                 .long("type")
                 .value_name("hash-algo")
-                .possible_values(&["md5", "sha1", "sha256", "sha512"])
-                .help("Hash algorithm of input HASHES. Optional as can also be extracted from SRI hash itself.")
-                .takes_value(true),
+                .value_parser(["md5", "sha1", "sha256", "sha512"])
+                .help("Hash algorithm of input HASHES. Optional as can also be extracted from SRI hash itself."),
         )
 }
 
@@ -62,9 +61,12 @@ where
     F: Fn(&hashes::Hash) -> String,
 {
     let mut hash_strs = args
-        .values_of("HASHES")
+        .get_many::<String>("HASHES")
         .ok_or("Please specify some hashes.")?;
-    let type_arg = args.value_of("type").unwrap_or("sri");
+    let type_arg = args
+        .get_one::<String>("type")
+        .map(|s| s.as_str())
+        .unwrap_or("sri");
 
     if let Some(hash_type) = hashes::HashType::from_str(type_arg) {
         return hash_strs.try_for_each(|hash_str| print_hash(hash_str, hash_type, &to_base_fn));
@@ -74,7 +76,10 @@ where
     return Err("hash type not supported".to_owned());
 }
 
-fn sri_to_base<F>(mut hash_strs: clap::Values, to_base_fn: F) -> Result<(), String>
+fn sri_to_base<'a, F>(
+    mut hash_strs: impl Iterator<Item = &'a String>,
+    to_base_fn: F,
+) -> Result<(), String>
 where
     F: Fn(&hashes::Hash) -> String,
 {

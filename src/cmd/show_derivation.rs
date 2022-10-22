@@ -1,17 +1,17 @@
 use crate::cmd::{to_cmd_err, RixSubCommand};
 use crate::derivations::load_derivation;
-use clap::{Arg, ArgMatches};
+use clap::{Arg, ArgAction, ArgMatches};
 use serde::ser::{SerializeMap, Serializer};
 use serde_json;
 
-pub fn cmd<'a>() -> RixSubCommand<'a> {
+pub fn cmd() -> RixSubCommand {
     return RixSubCommand {
         name: "show-derivation",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
             subcommand
                 .about("show the contents of a store derivation")
-                .arg(Arg::with_name("INSTALLABLES").multiple(true).help(
+                .arg(Arg::new("INSTALLABLES").action(ArgAction::Append).help(
                 "A list of derivation files. Other types of installables are not yet supported.",
             ))
         },
@@ -20,8 +20,9 @@ pub fn cmd<'a>() -> RixSubCommand<'a> {
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let installables = parsed_args
-        .values_of("INSTALLABLES")
-        .ok_or("Please specify some derivation files.")?;
+        .get_many::<String>("INSTALLABLES")
+        .ok_or("Please specify some derivation files.")?
+        .map(|string| string.as_str());
     show_derivations(installables)
 }
 
