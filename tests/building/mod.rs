@@ -27,13 +27,17 @@ fn test_build_derivation_sandboxed_success() {
     let derivation = simple_derivation(
         &tmp_dir,
         Path::new("/output"),
-        "mkdir -p $out && touch $out/hello",
+        "mkdir -p $out && touch $out/hello && echo hello > /dev/null",
     );
     assert_eq!(
         build_derivation_sandboxed(&BuildConfig::new(&derivation, &build_dir.path())).unwrap(),
         0
     );
     assert!(build_dir.path().join("output/hello").exists());
+    assert!(build_dir.path().join("dev/null").exists());
+    assert!(fs::read_to_string(build_dir.path().join("dev/null"))
+        .unwrap()
+        .is_empty());
 }
 
 #[test]

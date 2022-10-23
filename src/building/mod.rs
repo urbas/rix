@@ -36,6 +36,7 @@ impl<'a> BuildConfig<'a> {
 pub fn build_derivation_sandboxed(config: &BuildConfig) -> Result<i32, String> {
     // this function assumes all derivation inputs are present and won't be
     // GC'd for the duration of this build
+    // TODO: need to mount input_srcs of input_drvs too.
     let stdout_fd = config.stdout.map(|file| file.as_raw_fd());
     let stderr_fd = config.stderr.map(|file| file.as_raw_fd());
     // return value is the error code of the builder or 255 if anything went
@@ -58,6 +59,7 @@ pub fn build_derivation_command(derivation: &Derivation, build_dir: &Path) -> Co
 
 fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
     set_env(&config.derivation);
+    mount_standard_paths(config)?;
     mount_input_drvs(config)?;
     mount_paths(
         config.derivation.input_srcs.iter().map(Path::new),
@@ -100,4 +102,8 @@ fn mount_input_drvs(config: &BuildConfig) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn mount_standard_paths(config: &BuildConfig) -> Result<(), String> {
+    mount_path(Path::new("/dev/null"), config.build_dir)
 }

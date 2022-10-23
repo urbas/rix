@@ -32,7 +32,7 @@ pub fn run_in_sandbox(
         sched::CloneFlags::CLONE_NEWNS | sched::CloneFlags::CLONE_NEWUSER,
         Some(libc::SIGCHLD),
     )
-    .map_err(|err| format!("Failed to start the builder process. Error: {:?}", err))?;
+    .map_err(|err| format!("Failed to start the builder process. Error: {}", err))?;
 
     match wait::waitpid(pid, None) {
         Ok(wait::WaitStatus::Exited(_, exit_code)) => Ok(exit_code),
@@ -48,7 +48,7 @@ pub fn run_in_sandbox(
             Ok(255)
         }
         Err(err) => {
-            eprintln!("Error waiting for the builder process: {:?}", err);
+            eprintln!("Error waiting for the builder process: {}", err);
             Ok(255)
         }
     }
@@ -75,7 +75,7 @@ pub fn mount_path(path: &Path, new_root: &Path) -> Result<(), String> {
     )
     .map_err(|e| {
         format!(
-            "Failed to bind mount {:?} to {:?}. Error: {:?}",
+            "Failed to bind mount {:?} to {:?}. Error: {}",
             path, target_path, e
         )
     })
@@ -86,14 +86,14 @@ pub fn pivot_root(new_root: &Path) -> Result<(), String> {
     let old_root_name = Uuid::new_v4().to_string();
     let old_root = new_root.join(&old_root_name);
     let old_root_absolute = Path::new("/").join(old_root_name);
-    fs::create_dir_all(&old_root).map_err(|e| format!("Error creating oldroot: {:?}", e))?;
+    fs::create_dir_all(&old_root).map_err(|e| format!("Error creating oldroot: {}", e))?;
     unistd::pivot_root(new_root, &old_root)
-        .map_err(|e| format!("Error pivoting to new root: {:?}", e))?;
-    unistd::chdir("/").map_err(|e| format!("Error cd'ing to new root: {:?}", e))?;
+        .map_err(|e| format!("Error pivoting to new root: {}", e))?;
+    unistd::chdir("/").map_err(|e| format!("Error cd'ing to new root: {}", e))?;
     mount::umount2(&old_root_absolute, mount::MntFlags::MNT_DETACH)
-        .map_err(|e| format!("Error unmounting old root: {:?}", e))?;
+        .map_err(|e| format!("Error unmounting old root: {}", e))?;
     std::fs::remove_dir_all(&old_root_absolute)
-        .map_err(|e| format!("Error removing old root: {:?}", e))
+        .map_err(|e| format!("Error removing old root: {}", e))
 }
 
 fn mount_rootfs(new_root: &Path) -> Result<(), String> {
@@ -106,7 +106,7 @@ fn mount_rootfs(new_root: &Path) -> Result<(), String> {
         mount::MsFlags::MS_PRIVATE | mount::MsFlags::MS_REC,
         None::<&str>,
     )
-    .map_err(|e| format!("Error mounting old root: {:?}", e))?;
+    .map_err(|e| format!("Error mounting old root: {}", e))?;
 
     mount::mount(
         Some(new_root),
@@ -115,35 +115,31 @@ fn mount_rootfs(new_root: &Path) -> Result<(), String> {
         mount::MsFlags::MS_BIND | mount::MsFlags::MS_REC,
         None::<&str>,
     )
-    .map_err(|e| format!("Failed to mount new root: {:?}", e))
+    .map_err(|e| format!("Failed to mount new root: {}", e))
 }
 
 fn prepare_mount_path(source_path: &Path, new_root: &Path) -> Result<PathBuf, String> {
     let path_without_root = source_path.strip_prefix("/").map_err(|e| {
         format!(
-            "Could not remove '/' from path {:?}. Error: {:?}",
+            "Could not remove '/' from path {:?}. Error: {}",
             source_path, e
         )
     })?;
     let target_path = new_root.join(path_without_root);
     if source_path.is_dir() {
         fs::create_dir_all(&target_path)
-            .map_err(|e| format!("Error creating directory {:?}: {:?}", target_path, e))?;
+            .map_err(|e| format!("Error creating directory {:?}: {}", target_path, e))?;
     } else {
         if let Some(parent) = target_path.parent() {
             fs::create_dir_all(parent).map_err(|e| {
                 format!(
-                    "Error creating parent directories for {:?}: {:?}",
+                    "Error creating parent directories for {:?}: {}",
                     source_path, e
                 )
             })?;
         }
-        fs::write(&target_path, "").map_err(|e| {
-            format!(
-                "Error creating empty target file {:?}: {:?}",
-                source_path, e
-            )
-        })?;
+        fs::write(&target_path, "")
+            .map_err(|e| format!("Error creating empty target file {:?}: {}", source_path, e))?;
     }
     return Ok(target_path);
 }
