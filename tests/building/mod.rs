@@ -72,6 +72,7 @@ fn test_build_derivation_sandboxed_missing_deps() {
         builder,
         &vec![],
         HashMap::new(),
+        HashMap::new(),
     );
     let stderr_path = tmp_dir.path().join("stderr");
     let stderr_file = fs::File::create(&stderr_path).unwrap();
@@ -86,8 +87,8 @@ fn test_build_derivation_sandboxed_input_drvs() {
     let tmp_dir = tempdir().unwrap();
     let build_dir = tempdir().unwrap();
     let builder = &get_pkg_closure(".#busybox-sandbox-shell")[0];
-    let coreutils_closure = &get_pkg_closure(".#coreutils");
-    let input_drvs = get_derivation_paths(coreutils_closure);
+    let coreutils = &get_pkg_closure(".#coreutils");
+    let input_drvs = get_derivation_paths(coreutils);
     let derivation = test_derivation(
         &tmp_dir,
         Path::new("/output"),
@@ -98,6 +99,7 @@ fn test_build_derivation_sandboxed_input_drvs() {
             .into_iter()
             .map(|drv| (drv, HashSet::from(["out".to_owned()])))
             .collect(),
+        HashMap::from([("PATH".to_owned(), build_path(coreutils.iter()))]),
     );
     assert_eq!(
         build_derivation_sandboxed(&BuildConfig::new(&derivation, &build_dir.path())).unwrap(),
@@ -120,6 +122,7 @@ pub fn simple_derivation(
         &builder[0],
         &coreutils,
         HashMap::new(),
+        HashMap::from([("PATH".to_owned(), build_path(coreutils.iter()))]),
     );
 }
 
@@ -130,14 +133,16 @@ pub fn test_derivation(
     builder: &str,
     input_srcs: &Vec<String>,
     input_drvs: HashMap<String, HashSet<String>>,
+    mut env: HashMap<String, String>,
 ) -> Derivation {
     let builder_script_file = tmp_file(&src_dir, "builder.sh", builder_script);
     fs::set_permissions(&builder_script_file, fs::Permissions::from_mode(0o640)).unwrap();
+    env.extend([("out".to_owned(), out_dir.to_str().unwrap().to_owned())]);
 
     Derivation {
         builder: format!("{}/bin/busybox", builder),
         args: vec!["sh".to_owned(), builder_script_file.clone()],
-        env: HashMap::from([("out".to_owned(), out_dir.to_str().unwrap().to_owned())]),
+        env: env,
         input_drvs: input_drvs,
         input_srcs: input_srcs
             .iter()
@@ -182,4 +187,11 @@ pub fn get_derivation_paths(show_derivation_args: &Vec<String>) -> Vec<String> {
         serde_json::from_str(str::from_utf8(&show_drv_out.stdout).unwrap()).unwrap();
 
     parsed_out.keys().cloned().collect()
+}
+
+pub fn build_path<'a>(store_paths: impl Iterator<Item = &'a String>) -> String {
+    store_paths
+        .map(|path| format!("{}/bin", path))
+        .collect::<Vec<String>>()
+        .join(":")
 }

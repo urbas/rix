@@ -1,5 +1,6 @@
 use crate::derivations::{load_derivation, Derivation};
 use crate::sandbox::{mount_path, mount_paths, run_in_sandbox};
+use std::env::set_var;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::process::CommandExt;
@@ -56,18 +57,8 @@ pub fn build_derivation_command(derivation: &Derivation, build_dir: &Path) -> Co
 }
 
 fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
-    for (drv_path, outputs) in &config.derivation.input_drvs {
-        let derivation = load_derivation(drv_path)?;
-        for output in outputs {
-            let drv_output = derivation.outputs.get(output).ok_or_else(|| {
-                format!(
-                    "Could not find output '{}' of derivation {:?}",
-                    output, drv_path
-                )
-            })?;
-            mount_path(Path::new(&drv_output.path), config.build_dir)?;
-        }
-    }
+    set_env(&config.derivation);
+    mount_input_drvs(config)?;
     mount_paths(
         config.derivation.input_srcs.iter().map(Path::new),
         config.build_dir,
@@ -87,4 +78,26 @@ fn run_build(config: &BuildConfig, stdout_fd: Option<RawFd>, stderr_fd: Option<R
     // process takes over). So, it's an error no matter what if we get here.
     eprintln!("Error executing builder: {}", exec_error);
     255
+}
+
+fn set_env(derivation: &Derivation) {
+    for (var_name, var_value) in &derivation.env {
+        set_var(var_name, var_value);
+    }
+}
+
+fn mount_input_drvs(config: &BuildConfig) -> Result<(), String> {
+    for (drv_path, outputs) in &config.derivation.input_drvs {
+        let derivation = load_derivation(drv_path)?;
+        for output in outputs {
+            let drv_output = derivation.outputs.get(output).ok_or_else(|| {
+                format!(
+                    "Could not find output '{}' of derivation {:?}",
+                    output, drv_path
+                )
+            })?;
+            mount_path(Path::new(&drv_output.path), config.build_dir)?;
+        }
+    }
+    Ok(())
 }
