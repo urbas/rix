@@ -19,7 +19,7 @@ predicates = "*"
 clap = "*"
 colored = "*"
 libc = "*"
-nix = "*"
+nix = { version = "*", features = ["env"] }
 nom = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"

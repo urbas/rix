@@ -1,3 +1,4 @@
+use nix::env::clearenv;
 use nix::sys::wait;
 use nix::{mount, sched, unistd};
 use std::fs;
@@ -10,6 +11,10 @@ pub fn run_in_sandbox(
     run: impl Fn() -> isize,
 ) -> Result<i32, String> {
     let forked_logic = || -> isize {
+        if let Err(err) = unsafe { clearenv() } {
+            eprintln!("Could not clear environment variables: {}", err);
+            return 255;
+        }
         if let Err(err) = prepare_sandbox() {
             eprintln!("Error preparing the sandbox: {}", err);
             return 255;
