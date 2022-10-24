@@ -15,7 +15,7 @@ pub struct BuildConfig<'a> {
 }
 
 impl<'a> BuildConfig<'a> {
-    pub fn new(derivation: &'a Derivation, build_dir: &'a Path) -> BuildConfig {
+    pub fn new(derivation: &'a Derivation, build_dir: &'a Path) -> BuildConfig<'a> {
         BuildConfig {
             derivation: derivation,
             build_dir: build_dir,
@@ -99,6 +99,7 @@ fn mount_input_drvs(config: &BuildConfig) -> Result<(), String> {
                 )
             })?;
             mount_path(Path::new(&drv_output.path), config.build_dir)?;
+            // TODO: mount runtime dependencies of the output path too.
         }
     }
     Ok(())
