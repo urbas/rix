@@ -6,7 +6,7 @@ use nom::combinator::{map, opt, value, verify};
 use nom::multi::{fold_many0, separated_list0};
 use nom::sequence::{delimited, pair, preceded, tuple};
 use nom::IResult;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub fn parse_derivation(input: &str) -> IResult<&str, Derivation> {
     delimited(tag("Derive("), parse_derivation_args, char(')'))(input)
@@ -43,10 +43,10 @@ fn parse_derivation_args(input: &str) -> IResult<&str, Derivation> {
     ))
 }
 
-fn parse_derivation_outputs(input: &str) -> IResult<&str, HashMap<String, DerivationOutput>> {
+fn parse_derivation_outputs(input: &str) -> IResult<&str, BTreeMap<String, DerivationOutput>> {
     let derivation_outputs = fold_many0(
         pair(parse_derivation_output, opt(char(','))),
-        HashMap::new,
+        BTreeMap::new,
         |mut drv_outputs, ((name, drv_output), _)| {
             drv_outputs.insert(name, drv_output);
             drv_outputs
@@ -88,7 +88,7 @@ fn parse_string(input: &str) -> IResult<&str, String> {
     delimited(char('"'), parse_string_inside_quotes, char('"'))(input)
 }
 
-fn parse_input_derivations(input: &str) -> IResult<&str, HashMap<String, HashSet<String>>> {
+fn parse_input_derivations(input: &str) -> IResult<&str, BTreeMap<String, BTreeSet<String>>> {
     let input_derivations = fold_many0(
         tuple((
             char('('),
@@ -98,7 +98,7 @@ fn parse_input_derivations(input: &str) -> IResult<&str, HashMap<String, HashSet
             char(')'),
             opt(char(',')),
         )),
-        HashMap::new,
+        BTreeMap::new,
         |mut input_drvs, (_, drv, _, input_type, _, _)| {
             input_drvs.insert(drv, input_type);
             input_drvs
@@ -107,10 +107,10 @@ fn parse_input_derivations(input: &str) -> IResult<&str, HashMap<String, HashSet
     delimited(char('['), input_derivations, char(']'))(input)
 }
 
-fn parse_string_set(input: &str) -> IResult<&str, HashSet<String>> {
+fn parse_string_set(input: &str) -> IResult<&str, BTreeSet<String>> {
     let string_set = fold_many0(
         pair(parse_string, opt(char(','))),
-        HashSet::new,
+        BTreeSet::new,
         |mut strings, (string, _)| {
             strings.insert(string);
             strings
@@ -127,7 +127,7 @@ fn parse_strings(input: &str) -> IResult<&str, Vec<String>> {
     )(input)
 }
 
-fn parse_env(input: &str) -> IResult<&str, HashMap<String, String>> {
+fn parse_env(input: &str) -> IResult<&str, BTreeMap<String, String>> {
     let env_vars = fold_many0(
         tuple((
             char('('),
@@ -137,7 +137,7 @@ fn parse_env(input: &str) -> IResult<&str, HashMap<String, String>> {
             char(')'),
             opt(char(',')),
         )),
-        HashMap::new,
+        BTreeMap::new,
         |mut env_vars, (_, name, _, value, _, _)| {
             env_vars.insert(name, value);
             env_vars
@@ -324,7 +324,7 @@ mod tests {
         strings.iter().cloned().map(String::from).collect()
     }
 
-    fn to_string_set(strings: &[&str]) -> HashSet<String> {
+    fn to_string_set(strings: &[&str]) -> BTreeSet<String> {
         strings.iter().cloned().map(String::from).collect()
     }
 }
