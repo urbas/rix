@@ -1,6 +1,6 @@
 use crate::parsers::derivations::parse_derivation;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
 
@@ -9,10 +9,10 @@ use std::io::Write;
 pub struct Derivation {
     pub args: Vec<String>,
     pub builder: String,
-    pub env: HashMap<String, String>,
-    pub input_drvs: HashMap<String, HashSet<String>>,
-    pub input_srcs: HashSet<String>,
-    pub outputs: HashMap<String, DerivationOutput>,
+    pub env: BTreeMap<String, String>,
+    pub input_drvs: BTreeMap<String, BTreeSet<String>>,
+    pub input_srcs: BTreeSet<String>,
+    pub outputs: BTreeMap<String, DerivationOutput>,
     pub system: String,
 }
 
@@ -62,7 +62,7 @@ pub fn save_derivation(writer: &mut impl Write, derivation: &Derivation) -> std:
 
 fn write_outputs(
     writer: &mut impl Write,
-    outputs: &HashMap<String, DerivationOutput>,
+    outputs: &BTreeMap<String, DerivationOutput>,
 ) -> std::io::Result<()> {
     write_iter(writer, &mut outputs.iter(), |writer, entry| {
         write_output(writer, entry.0, entry.1)
@@ -71,7 +71,7 @@ fn write_outputs(
 
 fn write_input_drvs(
     writer: &mut impl Write,
-    input_drvs: &HashMap<String, HashSet<String>>,
+    input_drvs: &BTreeMap<String, BTreeSet<String>>,
 ) -> std::io::Result<()> {
     write_iter(writer, &mut input_drvs.iter(), |writer, entry| {
         let (drv_path, drv_outputs) = entry;
@@ -153,10 +153,13 @@ mod tests {
         Derivation {
             args: vec!["foo".to_owned(), "bar".to_owned()],
             builder: "foo.sh".to_owned(),
-            env: HashMap::from([("var1".to_owned(), "val1".to_owned())]),
-            input_drvs: HashMap::from([("foo.drv".to_owned(), HashSet::from(["out".to_owned()]))]),
-            input_srcs: HashSet::from(["/foo.txt".to_owned()]),
-            outputs: HashMap::from([(
+            env: BTreeMap::from([("var1".to_owned(), "val1".to_owned())]),
+            input_drvs: BTreeMap::from([(
+                "foo.drv".to_owned(),
+                BTreeSet::from(["out".to_owned()]),
+            )]),
+            input_srcs: BTreeSet::from(["/foo.txt".to_owned()]),
+            outputs: BTreeMap::from([(
                 "out".to_owned(),
                 DerivationOutput {
                     hash: None,

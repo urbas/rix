@@ -12,6 +12,9 @@ A reimplementation of `nix` in Rust.
   - 🌕 stage 0: creates a sandbox.
   - 🌕 stage 1: builds derivations without dependencies.
   - 🌗 stage 2: builds derivations with dependencies.
+    - TODO: deduplicate mount paths (rix now fails if different derivations specify the same mount paths).
+    - TODO: mount runtime dependencies of the output path too.
+    - TODO: prevent internet access.
   - 🌑 stage 3: builds fixed derivations (with internet access).
   - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies are present).
 

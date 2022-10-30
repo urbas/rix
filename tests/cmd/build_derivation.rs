@@ -3,7 +3,7 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use rix::derivations::save_derivation;
 use rix::derivations::{Derivation, DerivationOutput};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{read_to_string, File};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -84,8 +84,8 @@ fn build_derivation_missing_deps(test_data: &TestData) {
         "mkdir $out && touch $out/hello",
         &test_data.busybox_closure[0],
         &vec![],
-        HashMap::new(),
-        HashMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
     );
     let derivation_path = tmp_dir.path().join("foo.drv");
     let mut derivation_file = File::create(&derivation_path).unwrap();
@@ -121,9 +121,9 @@ fn build_derivation_sandboxed_input_drvs(test_data: &TestData) {
             .coreutils_drvs_closure
             .iter()
             .cloned()
-            .map(|drv| (drv, HashSet::from(["out".to_owned()])))
+            .map(|drv| (drv, BTreeSet::from(["out".to_owned()])))
             .collect(),
-        HashMap::from([(
+        BTreeMap::from([(
             "PATH".to_owned(),
             build_path(test_data.coreutils_closure.iter()),
         )]),
@@ -181,8 +181,8 @@ fn simple_derivation(
         builder_script,
         &test_data.busybox_closure[0],
         &test_data.coreutils_closure,
-        HashMap::new(),
-        HashMap::from([("PATH".to_owned(), build_path(coreutils.iter()))]),
+        BTreeMap::new(),
+        BTreeMap::from([("PATH".to_owned(), build_path(coreutils.iter()))]),
     );
 }
 
@@ -192,8 +192,8 @@ fn test_derivation(
     builder_script: &str,
     builder: &str,
     input_srcs: &Vec<String>,
-    input_drvs: HashMap<String, HashSet<String>>,
-    mut env: HashMap<String, String>,
+    input_drvs: BTreeMap<String, BTreeSet<String>>,
+    mut env: BTreeMap<String, String>,
 ) -> Derivation {
     let builder_script_file = tmp_file(&src_dir, "builder.sh", builder_script);
     fs::set_permissions(&builder_script_file, fs::Permissions::from_mode(0o640)).unwrap();
@@ -209,7 +209,7 @@ fn test_derivation(
             .chain(&[builder.to_owned(), builder_script_file.clone()])
             .cloned()
             .collect(),
-        outputs: HashMap::from([(
+        outputs: BTreeMap::from([(
             "out".to_owned(),
             DerivationOutput {
                 hash: Some("".to_owned()),
@@ -243,7 +243,7 @@ fn show_derivation(show_derivation_args: &Vec<String>) -> Vec<String> {
         .output()
         .expect("failed to show the derivation");
 
-    let parsed_out: HashMap<String, Derivation> =
+    let parsed_out: BTreeMap<String, Derivation> =
         serde_json::from_str(str::from_utf8(&show_drv_out.stdout).unwrap()).unwrap();
 
     parsed_out.keys().cloned().collect()
