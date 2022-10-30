@@ -1,8 +1,7 @@
 use crate::test_utils::tmp_file;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use rix::derivations::save_derivation;
-use rix::derivations::{Derivation, DerivationOutput};
+use rix::derivations::{load_derivation, save_derivation, Derivation, DerivationOutput};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{read_to_string, File};
 use std::os::unix::fs::PermissionsExt;
@@ -20,15 +19,28 @@ fn help() {
 
 #[test]
 fn build_derivations() {
-    // We have to call nix in order to get some bacis dependencies for the tests.
+    // We have to call nix in order to get some basic dependencies for the tests.
     // Unfortunately, calling nix over and over again is expensive. This is why
     // we call nix here upfront just once and then call test functions in parallel.
     let test_data = TestData::new();
     thread::scope(|scope| {
+        scope.spawn(|| load_and_save_derivation_stable(&test_data));
         scope.spawn(|| build_derivation_success(&test_data));
         scope.spawn(|| build_derivation_missing_deps(&test_data));
         scope.spawn(|| build_derivation_sandboxed_input_drvs(&test_data));
     });
+}
+
+fn load_and_save_derivation_stable(test_data: &TestData) {
+    for derivation_path in test_data.coreutils_drvs_closure.iter() {
+        let parsed_derivation = load_derivation(derivation_path).unwrap();
+        let mut derivation_bytes = Vec::new();
+        save_derivation(&mut derivation_bytes, &parsed_derivation).unwrap();
+        assert_eq!(
+            str::from_utf8(&derivation_bytes).unwrap(),
+            fs::read_to_string(&derivation_path).unwrap(),
+        );
+    }
 }
 
 fn build_derivation_success(test_data: &TestData) {
