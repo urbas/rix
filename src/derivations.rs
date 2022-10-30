@@ -121,7 +121,18 @@ fn write_output(
 }
 
 fn write_string(writer: &mut impl Write, string: &String) -> std::io::Result<()> {
-    write!(writer, "\"{}\"", &string)
+    let mut escaped_string = String::with_capacity(2 * string.capacity());
+    for character in string.chars() {
+        match character {
+            '\t' => escaped_string.push_str("\\t"),
+            '\n' => escaped_string.push_str("\\n"),
+            '\r' => escaped_string.push_str("\\r"),
+            '\\' => escaped_string.push_str("\\\\"),
+            '"' => escaped_string.push_str("\\\""),
+            character => escaped_string.push(character),
+        }
+    }
+    write!(writer, "\"{}\"", escaped_string)
 }
 
 #[cfg(test)]
