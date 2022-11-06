@@ -9,6 +9,7 @@ fn main() -> ExitCode {
 
     let subcommands = &[
         &cmd::build_derivation::cmd(),
+        &cmd::eval::cmd(),
         &cmd::hash::cmd(),
         &cmd::show_derivation::cmd(),
     ];
