@@ -21,6 +21,13 @@ A reimplementation of `nix` in Rust.
 
 ## Nix sub-commands
 
+- 🌘 `eval`
+
+  - 🌕 stage 0 (evaluate basic integer arithmetic)
+  - 🌑 stage 1 (MVP)
+  - 🌑 stage 2: most common use cases
+  - 🌑 stage 3: full implementation
+
 - 🌘 `show-derivation`
 
   - 🌕 stage 1 (MVP): parse .drv files and dump JSON
@@ -130,12 +137,6 @@ A reimplementation of `nix` in Rust.
   - 🌑 stage 3: full implementation
 
 - 🌑 `edit`
-
-  - 🌑 stage 1 (MVP)
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
-
-- 🌑 `eval`
 
   - 🌑 stage 1 (MVP)
   - 🌑 stage 2: most common use cases
