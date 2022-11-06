@@ -3,10 +3,10 @@ on: [push, pull_request]
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Nix Setup
         run: |
@@ -17,9 +17,9 @@ jobs:
           echo 'experimental-features = nix-command flakes' > $HOME/.config/nix/nix.conf
 
       - name: Cache Nix DevEnv
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
-          cache-name: cache-nix-dev-env-v5
+          cache-name: cache-nix-dev-env
         with:
           path: |
             /nix
@@ -28,15 +28,15 @@ jobs:
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.nix', '**/flake.lock') }}
 
       - name: Cache Rust Artifacts
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
-          cache-name: cache-rust-artifacts-v3
+          cache-name: cache-rust-artifacts
         with:
           path: |
             /home/runner/.rustup
             /home/runner/.cargo
             target
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml') }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml') }}
 
       - name: Build
         run: |
