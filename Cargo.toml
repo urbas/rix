@@ -1,7 +1,12 @@
 [package]
-name = "rix"
-version = "0.1.0"
+name = "rustnix"
+description = "A reimplementation of nix in Rust."
+documentation = "https://github.com/urbas/rix/blob/master/README.md"
 edition = "2021"
+homepage = "https://github.com/urbas/rix"
+license = "MIT"
+repository = "https://github.com/urbas/rix"
+version = "0.0.1"
 
 [lib]
 name = "rix"
@@ -12,16 +17,16 @@ name = "rix"
 path = "src/main.rs"
 
 [dev-dependencies]
-assert_cmd = "*"
-predicates = "*"
+assert_cmd = "2.0.5"
+predicates = "2.1.1"
 
 [dependencies]
-clap = "*"
-colored = "*"
-libc = "*"
-nix = { version = "*", features = ["env"] }
-nom = "*"
-serde = { version = "*", features = ["derive"] }
-serde_json = "*"
-tempfile = "*"
-uuid = { version = "*", features = ["v4"] }
+clap = "4.0.18"
+colored = "2.0.0"
+libc = "0.2.135"
+nix = { version = "0.25.0", features = ["env"] }
+nom = "7.1.1"
+serde = { version = "1.0.147", features = ["derive"] }
+serde_json = "1.0.87"
+tempfile = "3.3.0"
+uuid = { version = "1.2.1", features = ["v4"] }
