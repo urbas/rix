@@ -1,5 +1,5 @@
 use crate::cmd::{to_cmd_err, RixSubCommand};
-use crate::eval::eval_str;
+use crate::eval::{eval_str, Value};
 use clap::{Arg, ArgAction, ArgMatches};
 
 pub fn cmd() -> RixSubCommand {
@@ -24,6 +24,9 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let expr = parsed_args
         .get_one::<String>("expr")
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;
-    println!("{}", eval_str(expr));
+    match eval_str(expr) {
+        Value::Int(int) => println!("{}", int),
+        Value::Float(float) => println!("{:.6}", float),
+    }
     Ok(())
 }
