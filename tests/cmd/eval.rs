@@ -25,6 +25,14 @@ fn eval_float_arithmetic_expr() {
         .stderr(predicate::str::is_empty());
 }
 
+#[test]
+fn eval_boolean_expr() {
+    assert_cmd(&["--expr", "false || (true && true)"])
+        .success()
+        .stdout(predicate::str::diff("true\n"))
+        .stderr(predicate::str::is_empty());
+}
+
 fn assert_cmd(eval_args: &[&str]) -> assert_cmd::assert::Assert {
     let mut rix_args = vec!["eval"];
     rix_args.extend_from_slice(eval_args);

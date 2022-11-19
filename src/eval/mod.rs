@@ -1,11 +1,12 @@
-use rnix::ast::{BinOp, BinOpKind, Expr, Literal};
-use rnix::SyntaxKind::*;
+use rnix::ast::{BinOp, BinOpKind, Expr, Ident, Literal, UnaryOp, UnaryOpKind};
+use rnix::{SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    Int(i64),
+    Bool(bool),
     Float(f64),
+    Int(i64),
 }
 
 pub fn eval_str(nix_expr: &str) -> Value {
@@ -17,47 +18,89 @@ pub fn eval_str(nix_expr: &str) -> Value {
 pub fn eval_expr(expr: &Expr) -> Value {
     match expr {
         Expr::BinOp(bin_op) => eval_bin_op(&bin_op),
+        Expr::Ident(ident) => eval_ident(&ident),
         Expr::Literal(literal) => eval_literal(literal),
         Expr::Paren(paren) => eval_expr(&paren.expr().expect("Not implemented")),
+        Expr::UnaryOp(unary_op) => eval_unary_op(unary_op),
         _ => panic!("Not implemented: {:?}", expr),
     }
 }
 
 fn eval_bin_op(bin_op: &BinOp) -> Value {
     let operator = bin_op.operator().expect("Not implemented");
-    let lhs = bin_op.lhs().expect("Not implemented");
-    let rhs = bin_op.rhs().expect("Not implemented");
-    match (eval_expr(&lhs), eval_expr(&rhs)) {
-        (Value::Int(lhs_int), Value::Int(rhs_int)) => eval_bin_op_int(operator, lhs_int, rhs_int),
+    let lhs = &bin_op.lhs().expect("Not implemented");
+    let rhs = &bin_op.rhs().expect("Not implemented");
+    match operator {
+        BinOpKind::Add => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x + y, |x, y| x + y),
+        BinOpKind::Sub => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x - y, |x, y| x - y),
+        BinOpKind::Mul => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x * y, |x, y| x * y),
+        BinOpKind::Div => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x / y, |x, y| x / y),
+        BinOpKind::Or => eval_or_bin_op(&lhs, &rhs),
+        BinOpKind::And => eval_and_bin_op(&lhs, &rhs),
+        _ => panic!("Not implemented"),
+    }
+}
+
+fn eval_arithmetic_bin_op(
+    lhs: &Expr,
+    rhs: &Expr,
+    float_operator: fn(f64, f64) -> f64,
+    int_operator: fn(i64, i64) -> i64,
+) -> Value {
+    match (eval_expr(lhs), eval_expr(rhs)) {
+        (Value::Int(lhs_int), Value::Int(rhs_int)) => Value::Int(int_operator(lhs_int, rhs_int)),
         (Value::Int(lhs_int), Value::Float(rhs_float)) => {
-            eval_bin_op_float(operator, lhs_int as f64, rhs_float)
+            Value::Float(float_operator(lhs_int as f64, rhs_float))
         }
         (Value::Float(lhs_float), Value::Int(rhs_int)) => {
-            eval_bin_op_float(operator, lhs_float, rhs_int as f64)
+            Value::Float(float_operator(lhs_float, rhs_int as f64))
         }
         (Value::Float(lhs_float), Value::Float(rhs_float)) => {
-            eval_bin_op_float(operator, lhs_float, rhs_float)
+            Value::Float(float_operator(lhs_float, rhs_float))
         }
+        _ => panic!("Not supported"),
     }
 }
 
-fn eval_bin_op_int(operator: BinOpKind, lhs: i64, rhs: i64) -> Value {
-    match operator {
-        BinOpKind::Add => Value::Int(lhs + rhs),
-        BinOpKind::Sub => Value::Int(lhs - rhs),
-        BinOpKind::Mul => Value::Int(lhs * rhs),
-        BinOpKind::Div => Value::Int(lhs / rhs),
-        _ => panic!("Not implemented"),
+fn eval_or_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
+    let Value::Bool(lhs_value) = eval_expr(lhs) else {
+        todo!("Not implemented")
+    };
+    if lhs_value {
+        return Value::Bool(true);
+    }
+    let Value::Bool(rhs_value) = eval_expr(rhs) else {
+        todo!("Not implemented")
+    };
+    Value::Bool(rhs_value)
+}
+
+fn eval_and_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
+    let Value::Bool(lhs_value) = eval_expr(lhs) else {
+        todo!("Not implemented")
+    };
+    if !lhs_value {
+        return Value::Bool(false);
+    }
+    let Value::Bool(rhs_value) = eval_expr(rhs) else {
+        todo!("Not implemented")
+    };
+    Value::Bool(rhs_value)
+}
+
+fn eval_ident(ident: &Ident) -> Value {
+    let token = ident.ident_token().expect("Not implemented");
+    match token.kind() {
+        TOKEN_IDENT => eval_ident_token(&token),
+        _ => todo!("Not implemented"),
     }
 }
 
-fn eval_bin_op_float(operator: BinOpKind, lhs: f64, rhs: f64) -> Value {
-    match operator {
-        BinOpKind::Add => Value::Float(lhs + rhs),
-        BinOpKind::Sub => Value::Float(lhs - rhs),
-        BinOpKind::Mul => Value::Float(lhs * rhs),
-        BinOpKind::Div => Value::Float(lhs / rhs),
-        _ => panic!("Not implemented"),
+fn eval_ident_token(token: &SyntaxToken) -> Value {
+    match token.text() {
+        "true" => Value::Bool(true),
+        "false" => Value::Bool(false),
+        _ => todo!("Not implemented"),
     }
 }
 
@@ -68,6 +111,22 @@ fn eval_literal(literal: &Literal) -> Value {
         TOKEN_FLOAT => Value::Float(token.text().parse::<f64>().expect("Not implemented")),
         _ => todo!("Not implemented"),
     }
+}
+
+fn eval_unary_op(unary_op: &UnaryOp) -> Value {
+    let operator = unary_op.operator().expect("Not implemented");
+    let operand = eval_expr(&unary_op.expr().expect("Not implemented"));
+    match operator {
+        UnaryOpKind::Invert => eval_invert_unary_op(&operand),
+        _ => todo!("Not implemented"),
+    }
+}
+
+fn eval_invert_unary_op(operand: &Value) -> Value {
+    let Value::Bool(operand_value) = operand else {
+        todo!("Not implemented")
+    };
+    Value::Bool(!operand_value)
 }
 
 #[cfg(test)]
@@ -87,6 +146,17 @@ mod tests {
         assert_eq!(eval_str("1 / 2.0"), Value::Float(0.5));
         assert_eq!(eval_str("1.0 / 2"), Value::Float(0.5));
         assert_eq!(eval_str("1.0 / 2.0"), Value::Float(0.5));
+    }
+
+    #[test]
+    fn test_eval_bool_expr() {
+        assert_eq!(eval_str("true"), Value::Bool(true));
+        assert_eq!(eval_str("false"), Value::Bool(false));
+        assert_eq!(eval_str("!false"), Value::Bool(true));
+        assert_eq!(eval_str("false || true"), Value::Bool(true));
+        assert_eq!(eval_str("true && true"), Value::Bool(true));
+        assert_eq!(eval_str("false || true && false"), Value::Bool(false));
+        assert_eq!(eval_str("false && true || false"), Value::Bool(false));
     }
 
     #[test]
