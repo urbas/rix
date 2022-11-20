@@ -26,8 +26,9 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;
     match eval_str(expr) {
         Value::Bool(boolean) => println!("{}", boolean),
-        Value::Int(int) => println!("{}", int),
         Value::Float(float) => println!("{:.6}", float),
+        Value::Int(int) => println!("{}", int),
+        Value::Str(string) => println!("\"{}\"", string),
     }
     Ok(())
 }
