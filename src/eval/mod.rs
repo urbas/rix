@@ -1,9 +1,14 @@
-use rnix::ast::{BinOp, BinOpKind, Expr, Ident, Literal, Str, UnaryOp, UnaryOpKind};
+use std::collections::HashMap;
+
+use rnix::ast::{
+    AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, Literal, Str, UnaryOp, UnaryOpKind,
+};
 use rnix::{NodeOrToken, SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
+    AttrSet(HashMap<String, Value>),
     Bool(bool),
     Float(f64),
     Int(i64),
@@ -18,6 +23,7 @@ pub fn eval_str(nix_expr: &str) -> Value {
 
 pub fn eval_expr(expr: &Expr) -> Value {
     match expr {
+        Expr::AttrSet(attrset) => eval_attrset(&attrset),
         Expr::BinOp(bin_op) => eval_bin_op(&bin_op),
         Expr::Ident(ident) => eval_ident(&ident),
         Expr::Literal(literal) => eval_literal(literal),
@@ -26,6 +32,30 @@ pub fn eval_expr(expr: &Expr) -> Value {
         Expr::UnaryOp(unary_op) => eval_unary_op(unary_op),
         _ => panic!("Not implemented: {:?}", expr),
     }
+}
+
+fn eval_attrset(attrset: &AttrSet) -> Value {
+    let mut hash_map = HashMap::new();
+    for attrpath_value in attrset.attrpath_values() {
+        let attrpath = attrpath_value.attrpath().expect("Not implemented");
+        let value = eval_expr(&attrpath_value.value().expect("Not implemented"));
+        hash_map.insert(eval_attrpath(&attrpath), value);
+    }
+    Value::AttrSet(hash_map)
+}
+
+fn eval_attrpath(attrpath: &Attrpath) -> String {
+    let Some(attr) = attrpath.attrs().next() else {
+        todo!()
+    };
+    let Ok(ident) = Ident::try_from(attr) else {
+        todo!()
+    };
+    ident
+        .ident_token()
+        .expect("Not implemented")
+        .text()
+        .to_owned()
 }
 
 fn eval_bin_op(bin_op: &BinOp) -> Value {
@@ -144,6 +174,8 @@ fn eval_string_expr(string: &Str) -> Value {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -180,5 +212,13 @@ mod tests {
     #[test]
     fn test_eval_string_expr() {
         assert_eq!(eval_str("\"Hello!\""), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_attrset_expr() {
+        assert_eq!(
+            eval_str("{a = 42;}"),
+            Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(42))]))
+        );
     }
 }
