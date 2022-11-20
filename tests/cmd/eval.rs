@@ -33,6 +33,14 @@ fn eval_boolean_expr() {
         .stderr(predicate::str::is_empty());
 }
 
+#[test]
+fn eval_string_expr() {
+    assert_cmd(&["--expr", "\"World!\""])
+        .success()
+        .stdout(predicate::str::diff("\"World!\"\n"))
+        .stderr(predicate::str::is_empty());
+}
+
 fn assert_cmd(eval_args: &[&str]) -> assert_cmd::assert::Assert {
     let mut rix_args = vec!["eval"];
     rix_args.extend_from_slice(eval_args);

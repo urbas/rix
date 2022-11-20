@@ -1,5 +1,5 @@
-use rnix::ast::{BinOp, BinOpKind, Expr, Ident, Literal, UnaryOp, UnaryOpKind};
-use rnix::{SyntaxKind::*, SyntaxToken};
+use rnix::ast::{BinOp, BinOpKind, Expr, Ident, Literal, Str, UnaryOp, UnaryOpKind};
+use rnix::{NodeOrToken, SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
 
 #[derive(Debug, PartialEq)]
@@ -7,6 +7,7 @@ pub enum Value {
     Bool(bool),
     Float(f64),
     Int(i64),
+    Str(String),
 }
 
 pub fn eval_str(nix_expr: &str) -> Value {
@@ -21,6 +22,7 @@ pub fn eval_expr(expr: &Expr) -> Value {
         Expr::Ident(ident) => eval_ident(&ident),
         Expr::Literal(literal) => eval_literal(literal),
         Expr::Paren(paren) => eval_expr(&paren.expr().expect("Not implemented")),
+        Expr::Str(string) => eval_string_expr(string),
         Expr::UnaryOp(unary_op) => eval_unary_op(unary_op),
         _ => panic!("Not implemented: {:?}", expr),
     }
@@ -129,6 +131,17 @@ fn eval_invert_unary_op(operand: &Value) -> Value {
     Value::Bool(!operand_value)
 }
 
+fn eval_string_expr(string: &Str) -> Value {
+    let mut tokens = string.syntax().children_with_tokens();
+    if let None = tokens.next() {
+        todo!()
+    };
+    let Some(NodeOrToken:: Token(string_content)) = tokens.next() else {
+        todo!()
+    };
+    Value::Str(string_content.text().to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,5 +175,10 @@ mod tests {
     #[test]
     fn test_eval_paren() {
         assert_eq!(eval_str("(1 + 2) + 3"), Value::Int(6));
+    }
+
+    #[test]
+    fn test_eval_string_expr() {
+        assert_eq!(eval_str("\"Hello!\""), Value::Str("Hello!".to_owned()));
     }
 }
