@@ -23,10 +23,10 @@ A reimplementation of `nix` in Rust.
 
 - 🌘 `eval`
 
-  - 🌕 stage 0 (evaluate basic integer arithmetic)
-  - 🌑 stage 1 (MVP)
-  - 🌑 stage 2: most common use cases
-  - 🌑 stage 3: full implementation
+  - 🌘 stage 0 (evaluate basic expressions)
+  - 🌑 stage 1 (MVP: lazy evaluation, some built-in functions, imports)
+  - 🌑 stage 2: most common use cases (hello world derivation)
+  - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error messages, etc.)
 
 - 🌘 `show-derivation`
 

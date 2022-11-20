@@ -41,6 +41,14 @@ fn eval_string_expr() {
         .stderr(predicate::str::is_empty());
 }
 
+#[test]
+fn eval_attrset_expr() {
+    assert_cmd(&["--expr", "{ a = 41 + 1; }"])
+        .success()
+        .stdout(predicate::str::diff("{ a = 42; }\n"))
+        .stderr(predicate::str::is_empty());
+}
+
 fn assert_cmd(eval_args: &[&str]) -> assert_cmd::assert::Assert {
     let mut rix_args = vec!["eval"];
     rix_args.extend_from_slice(eval_args);
