@@ -95,29 +95,18 @@ fn eval_arithmetic_bin_op(
 }
 
 fn eval_or_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
-    let Value::Bool(lhs_value) = eval_expr(lhs) else {
-        todo!("Not implemented")
-    };
-    if lhs_value {
-        return Value::Bool(true);
-    }
-    let Value::Bool(rhs_value) = eval_expr(rhs) else {
-        todo!("Not implemented")
-    };
-    Value::Bool(rhs_value)
+    Value::Bool(eval_bool(lhs) || eval_bool(rhs))
 }
 
 fn eval_and_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
-    let Value::Bool(lhs_value) = eval_expr(lhs) else {
-        todo!("Not implemented")
-    };
-    if !lhs_value {
-        return Value::Bool(false);
+    Value::Bool(eval_bool(lhs) && eval_bool(rhs))
+}
+
+fn eval_bool(expr: &Expr) -> bool {
+    match eval_expr(expr) {
+        Value::Bool(value) => value,
+        _ => todo!("Not implemented"),
     }
-    let Value::Bool(rhs_value) = eval_expr(rhs) else {
-        todo!("Not implemented")
-    };
-    Value::Bool(rhs_value)
 }
 
 fn eval_ident(ident: &Ident) -> Value {
