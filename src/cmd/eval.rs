@@ -26,7 +26,10 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let expr = parsed_args
         .get_one::<String>("expr")
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;
-    print_value(&eval_str(expr));
+    let Ok(value) = eval_str(expr) else {
+        return Err("Evaluation failed.".to_owned());
+    };
+    print_value(&value);
     println!();
     Ok(())
 }
