@@ -178,7 +178,7 @@ fn eval_unary_op(unary_op: &UnaryOp) -> Value {
     let operand = eval_expr(&unary_op.expr().expect("Not implemented"));
     match operator {
         UnaryOpKind::Invert => eval_invert_unary_op(&operand),
-        _ => todo!(),
+        UnaryOpKind::Negate => eval_negate_unary_op(&operand),
     }
 }
 
@@ -187,6 +187,14 @@ fn eval_invert_unary_op(operand: &Value) -> Value {
         todo!()
     };
     Value::Bool(!operand_value)
+}
+
+fn eval_negate_unary_op(operand: &Value) -> Value {
+    match operand {
+        Value::Int(operand_int) => Value::Int(-operand_int),
+        Value::Float(operand_float) => Value::Float(-operand_float),
+        _ => todo!(),
+    }
 }
 
 fn eval_string_expr(string: &Str) -> Value {
@@ -208,6 +216,7 @@ mod tests {
 
     #[test]
     fn test_eval_int_arithmetic() {
+        assert_eq!(eval_str("-1"), Value::Int(-1));
         assert_eq!(eval_str("1 + 2"), Value::Int(3));
         assert_eq!(eval_str("1 - 2"), Value::Int(-1));
         assert_eq!(eval_str("1 * 2"), Value::Int(2));
@@ -216,6 +225,7 @@ mod tests {
 
     #[test]
     fn test_eval_float_arithmetic() {
+        assert_eq!(eval_str("-1.0"), Value::Float(-1.0));
         assert_eq!(eval_str("1 / 2.0"), Value::Float(0.5));
         assert_eq!(eval_str("1.0 / 2"), Value::Float(0.5));
         assert_eq!(eval_str("1.0 / 2.0"), Value::Float(0.5));
