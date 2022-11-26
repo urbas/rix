@@ -75,11 +75,12 @@ fn eval_bin_op(bin_op: &BinOp) -> Value {
         // Boolean
         BinOpKind::Or => eval_or_bin_op(&lhs, &rhs),
         BinOpKind::And => eval_and_bin_op(&lhs, &rhs),
+        BinOpKind::Implication => eval_implication_bin_op(&lhs, &rhs),
         // List
         BinOpKind::Concat => eval_concat_bin_op(&lhs, &rhs),
         // Attrset
         BinOpKind::Update => eval_update_bin_op(&lhs, &rhs),
-        _ => todo!(),
+        _ => todo!("{:?}", operator),
     }
 }
 
@@ -114,6 +115,10 @@ fn eval_or_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
 
 fn eval_and_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
     Value::Bool(eval_bool(lhs) && eval_bool(rhs))
+}
+
+fn eval_implication_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
+    Value::Bool(!eval_bool(lhs) || eval_bool(rhs))
 }
 
 fn eval_bool(expr: &Expr) -> bool {
@@ -270,6 +275,7 @@ mod tests {
         assert_eq!(eval_str("true && true"), Value::Bool(true));
         assert_eq!(eval_str("false || true && false"), Value::Bool(false));
         assert_eq!(eval_str("false && true || false"), Value::Bool(false));
+        assert_eq!(eval_str("true -> false"), Value::Bool(false));
     }
 
     #[test]
