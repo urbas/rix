@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use rnix::ast::{
-    AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, List, Literal, Str, UnaryOp,
-    UnaryOpKind,
+    Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal, Str,
+    UnaryOp, UnaryOpKind,
 };
 use rnix::{NodeOrToken, SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
@@ -27,6 +27,7 @@ pub fn eval_expr(expr: &Expr) -> Value {
     match expr {
         Expr::AttrSet(attrset) => eval_attrset(&attrset),
         Expr::BinOp(bin_op) => eval_bin_op(&bin_op),
+        Expr::HasAttr(has_op) => eval_has_op(&has_op),
         Expr::Ident(ident) => eval_ident(&ident),
         Expr::List(list) => eval_list(list),
         Expr::Literal(literal) => eval_literal(literal),
@@ -142,6 +143,35 @@ fn eval_update_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
     };
     lhs_hash_map.extend(rhs_hash_map);
     Value::AttrSet(lhs_hash_map)
+}
+
+fn eval_has_op(has_op: &HasAttr) -> Value {
+    let mut lhs_value = &eval_expr(&has_op.expr().expect("Unreachable"));
+    let attr_path = has_op.attrpath().expect("Unreachable");
+    for attr in attr_path.attrs() {
+        let attr_str = attr_to_str(&attr);
+        let Value::AttrSet(hash_map) = lhs_value else {
+            return Value::Bool(false);
+        };
+        let Some(attr_value) = hash_map.get(&attr_str) else {
+            return Value::Bool(false);
+        };
+        lhs_value = attr_value;
+    }
+    Value::Bool(true)
+}
+
+fn attr_to_str(attr: &Attr) -> String {
+    match attr {
+        Attr::Ident(ident) => ident.ident_token().expect("Unreachable").text().to_owned(),
+        Attr::Str(str_expr) => {
+            let Value::Str(attr_str) = eval_string_expr(str_expr) else {
+                todo!()
+            };
+            attr_str
+        }
+        _ => todo!(),
+    }
 }
 
 fn eval_ident(ident: &Ident) -> Value {
@@ -298,5 +328,12 @@ mod tests {
                 ("c".to_owned(), Value::Int(1)),
             ]))
         );
+    }
+
+    #[test]
+    fn test_eval_has_op() {
+        assert_eq!(eval_str("{a = 1;} ? a"), Value::Bool(true));
+        assert_eq!(eval_str("{a = 1;} ? \"a\""), Value::Bool(true));
+        assert_eq!(eval_str("{a = {b = 1;};} ? a.c"), Value::Bool(false));
     }
 }
