@@ -66,13 +66,17 @@ fn eval_bin_op(bin_op: &BinOp) -> Value {
     let lhs = &bin_op.lhs().expect("Not implemented");
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
+        // Arithmetic
         BinOpKind::Add => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x + y, |x, y| x + y),
         BinOpKind::Sub => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x - y, |x, y| x - y),
         BinOpKind::Mul => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x * y, |x, y| x * y),
         BinOpKind::Div => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x / y, |x, y| x / y),
+        // Boolean
         BinOpKind::Or => eval_or_bin_op(&lhs, &rhs),
         BinOpKind::And => eval_and_bin_op(&lhs, &rhs),
-        _ => panic!("Not implemented"),
+        // List
+        BinOpKind::Concat => eval_concat_bin_op(&lhs, &rhs),
+        _ => todo!(),
     }
 }
 
@@ -93,7 +97,7 @@ fn eval_arithmetic_bin_op(
         (Value::Float(lhs_float), Value::Float(rhs_float)) => {
             Value::Float(float_operator(lhs_float, rhs_float))
         }
-        _ => panic!("Not supported"),
+        _ => todo!(),
     }
 }
 
@@ -110,6 +114,17 @@ fn eval_bool(expr: &Expr) -> bool {
         Value::Bool(value) => value,
         _ => todo!(),
     }
+}
+
+fn eval_concat_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
+    let Value::List(mut lhs_vector) = eval_expr(lhs) else {
+        todo!()
+    };
+    let Value::List(rhs_vector) = eval_expr(rhs) else {
+        todo!()
+    };
+    lhs_vector.extend(rhs_vector);
+    Value::List(lhs_vector)
 }
 
 fn eval_ident(ident: &Ident) -> Value {
@@ -219,6 +234,14 @@ mod tests {
                 Value::Bool(true),
                 Value::Str("answer".to_owned())
             ])
+        );
+    }
+
+    #[test]
+    fn test_eval_concat_bin_op() {
+        assert_eq!(
+            eval_str("[1] ++ [2]"),
+            Value::List(vec![Value::Int(1), Value::Int(2),])
         );
     }
 
