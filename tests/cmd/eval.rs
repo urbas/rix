@@ -42,6 +42,14 @@ fn eval_string_expr() {
 }
 
 #[test]
+fn eval_list_expr() {
+    assert_cmd(&["--expr", "[ (1 + 1) (true && false) ]"])
+        .success()
+        .stdout(predicate::str::diff("[ 2 false ]\n"))
+        .stderr(predicate::str::is_empty());
+}
+
+#[test]
 fn eval_attrset_expr() {
     assert_cmd(&["--expr", "{ a = 41 + 1; }"])
         .success()

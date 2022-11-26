@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use rnix::ast::{
-    AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, Literal, Str, UnaryOp, UnaryOpKind,
+    AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, List, Literal, Str, UnaryOp,
+    UnaryOpKind,
 };
 use rnix::{NodeOrToken, SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
@@ -12,6 +13,7 @@ pub enum Value {
     Bool(bool),
     Float(f64),
     Int(i64),
+    List(Vec<Value>),
     Str(String),
 }
 
@@ -26,6 +28,7 @@ pub fn eval_expr(expr: &Expr) -> Value {
         Expr::AttrSet(attrset) => eval_attrset(&attrset),
         Expr::BinOp(bin_op) => eval_bin_op(&bin_op),
         Expr::Ident(ident) => eval_ident(&ident),
+        Expr::List(list) => eval_list(list),
         Expr::Literal(literal) => eval_literal(literal),
         Expr::Paren(paren) => eval_expr(&paren.expr().expect("Not implemented")),
         Expr::Str(string) => eval_string_expr(string),
@@ -105,7 +108,7 @@ fn eval_and_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
 fn eval_bool(expr: &Expr) -> bool {
     match eval_expr(expr) {
         Value::Bool(value) => value,
-        _ => todo!("Not implemented"),
+        _ => todo!(),
     }
 }
 
@@ -113,7 +116,7 @@ fn eval_ident(ident: &Ident) -> Value {
     let token = ident.ident_token().expect("Not implemented");
     match token.kind() {
         TOKEN_IDENT => eval_ident_token(&token),
-        _ => todo!("Not implemented"),
+        _ => todo!(),
     }
 }
 
@@ -121,8 +124,12 @@ fn eval_ident_token(token: &SyntaxToken) -> Value {
     match token.text() {
         "true" => Value::Bool(true),
         "false" => Value::Bool(false),
-        _ => todo!("Not implemented"),
+        _ => todo!(),
     }
+}
+
+fn eval_list(list: &List) -> Value {
+    Value::List(list.items().map(|item| eval_expr(&item)).collect())
 }
 
 fn eval_literal(literal: &Literal) -> Value {
@@ -130,7 +137,7 @@ fn eval_literal(literal: &Literal) -> Value {
     match token.kind() {
         TOKEN_INTEGER => Value::Int(token.text().parse::<i64>().expect("Not implemented")),
         TOKEN_FLOAT => Value::Float(token.text().parse::<f64>().expect("Not implemented")),
-        _ => todo!("Not implemented"),
+        _ => todo!(),
     }
 }
 
@@ -139,13 +146,13 @@ fn eval_unary_op(unary_op: &UnaryOp) -> Value {
     let operand = eval_expr(&unary_op.expr().expect("Not implemented"));
     match operator {
         UnaryOpKind::Invert => eval_invert_unary_op(&operand),
-        _ => todo!("Not implemented"),
+        _ => todo!(),
     }
 }
 
 fn eval_invert_unary_op(operand: &Value) -> Value {
     let Value::Bool(operand_value) = operand else {
-        todo!("Not implemented")
+        todo!()
     };
     Value::Bool(!operand_value)
 }
@@ -201,6 +208,18 @@ mod tests {
     #[test]
     fn test_eval_string_expr() {
         assert_eq!(eval_str("\"Hello!\""), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_list_expr() {
+        assert_eq!(
+            eval_str("[ 42 true \"answer\" ]"),
+            Value::List(vec![
+                Value::Int(42),
+                Value::Bool(true),
+                Value::Str("answer".to_owned())
+            ])
+        );
     }
 
     #[test]

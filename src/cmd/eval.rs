@@ -37,8 +37,18 @@ fn print_value(value: &Value) {
         Value::Bool(boolean) => print!("{}", boolean),
         Value::Float(float) => print!("{:.6}", float),
         Value::Int(int) => print!("{}", int),
+        Value::List(vector) => print_list(vector),
         Value::Str(string) => print!("\"{}\"", string),
     }
+}
+
+fn print_list(vector: &Vec<Value>) {
+    print!("[ ");
+    for value in vector {
+        print_value(value);
+        print!(" ");
+    }
+    print!("]");
 }
 
 fn print_attrset(hash_map: &HashMap<String, Value>) {
