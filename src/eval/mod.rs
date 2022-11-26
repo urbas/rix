@@ -76,6 +76,8 @@ fn eval_bin_op(bin_op: &BinOp) -> Value {
         BinOpKind::And => eval_and_bin_op(&lhs, &rhs),
         // List
         BinOpKind::Concat => eval_concat_bin_op(&lhs, &rhs),
+        // Attrset
+        BinOpKind::Update => eval_update_bin_op(&lhs, &rhs),
         _ => todo!(),
     }
 }
@@ -125,6 +127,17 @@ fn eval_concat_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
     };
     lhs_vector.extend(rhs_vector);
     Value::List(lhs_vector)
+}
+
+fn eval_update_bin_op(lhs: &Expr, rhs: &Expr) -> Value {
+    let Value::AttrSet(mut lhs_hash_map) = eval_expr(lhs) else {
+        todo!()
+    };
+    let Value::AttrSet(rhs_hash_map) = eval_expr(rhs) else {
+        todo!()
+    };
+    lhs_hash_map.extend(rhs_hash_map);
+    Value::AttrSet(lhs_hash_map)
 }
 
 fn eval_ident(ident: &Ident) -> Value {
@@ -250,6 +263,18 @@ mod tests {
         assert_eq!(
             eval_str("{a = 42;}"),
             Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(42))]))
+        );
+    }
+
+    #[test]
+    fn test_eval_update_bin_op() {
+        assert_eq!(
+            eval_str("{a = 1; b = 2;} // {a = 3; c = 1;"),
+            Value::AttrSet(HashMap::from([
+                ("a".to_owned(), Value::Int(3)),
+                ("b".to_owned(), Value::Int(2)),
+                ("c".to_owned(), Value::Int(1)),
+            ]))
         );
     }
 }
