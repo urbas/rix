@@ -99,6 +99,10 @@ fn eval_arithmetic_bin_op(
         (Value::Float(lhs_float), Value::Float(rhs_float)) => {
             Value::Float(float_operator(lhs_float, rhs_float))
         }
+        (Value::Str(mut lhs_str), Value::Str(rhs_str)) => {
+            lhs_str.push_str(&rhs_str);
+            Value::Str(lhs_str)
+        }
         _ => todo!(),
     }
 }
@@ -236,6 +240,14 @@ mod tests {
     #[test]
     fn test_eval_string_expr() {
         assert_eq!(eval_str("\"Hello!\""), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_string_concat_op() {
+        assert_eq!(
+            eval_str("\"Hell\" + \"o!\""),
+            Value::Str("Hello!".to_owned())
+        );
     }
 
     #[test]
