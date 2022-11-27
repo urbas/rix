@@ -70,7 +70,7 @@ fn eval_bin_op(bin_op: &BinOp) -> EvalResult {
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
         // Arithmetic
-        BinOpKind::Add => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x + y, |x, y| x + y),
+        BinOpKind::Add => eval_add_bin_op(&lhs, &rhs),
         BinOpKind::Sub => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x - y, |x, y| x - y),
         BinOpKind::Mul => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x * y, |x, y| x * y),
         BinOpKind::Div => eval_arithmetic_bin_op(&lhs, &rhs, |x, y| x / y, |x, y| x / y),
@@ -86,29 +86,50 @@ fn eval_bin_op(bin_op: &BinOp) -> EvalResult {
     }
 }
 
+fn eval_add_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match eval_expr(lhs)? {
+        Value::Int(lhs_int) => match eval_expr(rhs)? {
+            Value::Int(rhs_int) => Ok(Value::Int(lhs_int + rhs_int)),
+            Value::Float(rhs_float) => Ok(Value::Float(lhs_int as f64 + rhs_float)),
+            _ => todo!(),
+        },
+        Value::Float(lhs_float) => match eval_expr(rhs)? {
+            Value::Int(rhs_int) => Ok(Value::Float(lhs_float + rhs_int as f64)),
+            Value::Float(rhs_float) => Ok(Value::Float(lhs_float + rhs_float)),
+            _ => todo!(),
+        },
+        Value::Str(mut lhs_str) => {
+            let Value::Str(rhs_str) = eval_expr(rhs)? else {
+                todo!()
+            };
+            lhs_str.push_str(&rhs_str);
+            Ok(Value::Str(lhs_str))
+        }
+        _ => todo!(),
+    }
+}
+
 fn eval_arithmetic_bin_op(
     lhs: &Expr,
     rhs: &Expr,
     float_operator: fn(f64, f64) -> f64,
     int_operator: fn(i64, i64) -> i64,
 ) -> EvalResult {
-    Ok(match (eval_expr(lhs)?, eval_expr(rhs)?) {
-        (Value::Int(lhs_int), Value::Int(rhs_int)) => Value::Int(int_operator(lhs_int, rhs_int)),
+    match (eval_expr(lhs)?, eval_expr(rhs)?) {
+        (Value::Int(lhs_int), Value::Int(rhs_int)) => {
+            Ok(Value::Int(int_operator(lhs_int, rhs_int)))
+        }
         (Value::Int(lhs_int), Value::Float(rhs_float)) => {
-            Value::Float(float_operator(lhs_int as f64, rhs_float))
+            Ok(Value::Float(float_operator(lhs_int as f64, rhs_float)))
         }
         (Value::Float(lhs_float), Value::Int(rhs_int)) => {
-            Value::Float(float_operator(lhs_float, rhs_int as f64))
+            Ok(Value::Float(float_operator(lhs_float, rhs_int as f64)))
         }
         (Value::Float(lhs_float), Value::Float(rhs_float)) => {
-            Value::Float(float_operator(lhs_float, rhs_float))
+            Ok(Value::Float(float_operator(lhs_float, rhs_float)))
         }
-        (Value::Str(mut lhs_str), Value::Str(rhs_str)) => {
-            lhs_str.push_str(&rhs_str);
-            Value::Str(lhs_str)
-        }
-        _ => todo!(),
-    })
+        _ => Err(()), // TODO: add a better error message that explains nicely what the error is
+    }
 }
 
 fn eval_or_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
@@ -301,6 +322,11 @@ mod tests {
             eval_ok("\"Hell\" + \"o!\""),
             Value::Str("Hello!".to_owned())
         );
+    }
+
+    #[test]
+    fn test_eval_string_mul_op() {
+        assert_eq!(eval_str("\"a\" * \"b\""), Err(()));
     }
 
     #[test]
