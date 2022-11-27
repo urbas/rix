@@ -23,9 +23,9 @@ A reimplementation of `nix` in Rust.
 
 - 🌘 `eval`
 
-  - 🌘 stage 0 (evaluate basic expressions)
-  - 🌑 stage 1 (MVP: lazy evaluation, some built-in functions, imports)
-  - 🌑 stage 2: most common use cases (hello world derivation)
+  - 🌘 stage 0: evaluate basic expressions, rec attrsets, let bindings, `with` statement, functions
+  - 🌑 stage 1 (MVP): lazy evaluation, imports, error messages
+  - 🌑 stage 2: most built-in functions, common use cases (hello world derivation)
   - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error messages, etc.)
 
 - 🌘 `show-derivation`

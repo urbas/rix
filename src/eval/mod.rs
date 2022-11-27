@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use rnix::ast::{
-    Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal, Str,
-    UnaryOp, UnaryOpKind,
+    Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal,
+    Select, Str, UnaryOp, UnaryOpKind,
 };
 use rnix::{NodeOrToken, SyntaxKind::*, SyntaxToken};
 use rowan::ast::AstNode;
@@ -34,6 +34,7 @@ pub fn eval_expr(expr: &Expr) -> EvalResult {
         Expr::List(list) => eval_list(list),
         Expr::Literal(literal) => eval_literal(literal),
         Expr::Paren(paren) => eval_expr(&paren.expr().expect("Not implemented")),
+        Expr::Select(select) => eval_select_op(select),
         Expr::Str(string) => eval_string_expr(string),
         Expr::UnaryOp(unary_op) => eval_unary_op(unary_op),
         _ => panic!("Not implemented: {:?}", expr),
@@ -256,6 +257,30 @@ fn eval_negate_unary_op(operand: &Value) -> EvalResult {
     })
 }
 
+fn eval_select_op(select: &Select) -> EvalResult {
+    let mut lhs_value = eval_expr(&select.expr().expect("Unreachable"))?;
+    let attr_path = select.attrpath().expect("Unreachable");
+    for attr in attr_path.attrs() {
+        let attr_str = attr_to_str(&attr)?;
+        let Value::AttrSet(mut hash_map) = lhs_value else {
+            return eval_select_default(select);
+        };
+        let Some(attr_value) = hash_map.remove(&attr_str) else {
+            return eval_select_default(select);
+        };
+        lhs_value = attr_value;
+    }
+    Ok(lhs_value)
+}
+
+fn eval_select_default(select: &Select) -> EvalResult {
+    select
+        .default_expr()
+        .map(|expr| eval_expr(&expr))
+        .transpose()?
+        .ok_or(())
+}
+
 fn eval_string_expr(string: &Str) -> EvalResult {
     let mut tokens = string.syntax().children_with_tokens();
     if let None = tokens.next() {
@@ -374,5 +399,11 @@ mod tests {
         assert_eq!(eval_ok("{a = 1;} ? a"), Value::Bool(true));
         assert_eq!(eval_ok("{a = 1;} ? \"a\""), Value::Bool(true));
         assert_eq!(eval_ok("{a = {b = 1;};} ? a.c"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_select_op() {
+        assert_eq!(eval_ok("{a = 1;}.a"), Value::Int(1));
+        assert_eq!(eval_ok("{a = 1;}.b or 2"), Value::Int(2));
     }
 }
