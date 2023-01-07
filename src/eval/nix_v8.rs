@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use rnix::{
-    ast::{Expr, Ident, UnaryOp, UnaryOpKind},
+    ast::{BinOp, BinOpKind, Expr, Ident, UnaryOp, UnaryOpKind},
     SyntaxKind, SyntaxToken,
 };
 
@@ -48,9 +48,23 @@ fn nix_expr_to_js(nix_expr: &str) -> Result<String, ()> {
 
 fn ast_to_js(nix_ast: &Expr) -> Result<String, ()> {
     match nix_ast {
+        Expr::BinOp(bin_op) => bin_op_to_js(&bin_op),
         Expr::Ident(ident) => ident_to_js(&ident),
         Expr::UnaryOp(unary_op) => unary_op_to_js(unary_op),
         _ => panic!("Not implemented: {:?}", nix_ast),
+    }
+}
+
+fn bin_op_to_js(bin_op: &BinOp) -> Result<String, ()> {
+    let operator = bin_op.operator().expect("Not implemented");
+    let lhs = ast_to_js(&bin_op.lhs().expect("Not implemented"))?;
+    let rhs = ast_to_js(&bin_op.rhs().expect("Not implemented"))?;
+    match operator {
+        // Boolean
+        BinOpKind::And => Ok(format!("{} && {}", lhs, rhs)),
+        BinOpKind::Implication => Ok(format!("!{} || {}", lhs, rhs)),
+        BinOpKind::Or => Ok(format!("{} || {}", lhs, rhs)),
+        _ => panic!("BinOp not implemented: {:?}", operator),
     }
 }
 
@@ -74,7 +88,7 @@ fn unary_op_to_js(unary_op: &UnaryOp) -> Result<String, ()> {
     let operator = unary_op.operator().expect("Not implemented");
     let operand = ast_to_js(&unary_op.expr().expect("Not implemented"))?;
     match operator {
-        UnaryOpKind::Invert => Ok(format!("!({})", operand)),
+        UnaryOpKind::Invert => Ok(format!("!{}", operand)),
         _ => todo!(),
     }
 }
@@ -94,5 +108,11 @@ mod tests {
         assert_eq!(eval_ok("true"), Value::Bool(true));
         assert_eq!(eval_ok("false"), Value::Bool(false));
         assert_eq!(eval_ok("!false"), Value::Bool(true));
+        assert_eq!(eval_ok("false || true"), Value::Bool(true));
+        assert_eq!(eval_ok("false || !false"), Value::Bool(true));
+        assert_eq!(eval_ok("true && true"), Value::Bool(true));
+        assert_eq!(eval_ok("false || true && false"), Value::Bool(false));
+        assert_eq!(eval_ok("false && true || false"), Value::Bool(false));
+        assert_eq!(eval_ok("true -> false"), Value::Bool(false));
     }
 }
