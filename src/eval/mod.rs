@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use rnix::ast::{
@@ -79,6 +80,9 @@ fn eval_bin_op(bin_op: &BinOp) -> EvalResult {
         BinOpKind::Or => eval_or_bin_op(&lhs, &rhs),
         BinOpKind::And => eval_and_bin_op(&lhs, &rhs),
         BinOpKind::Implication => eval_implication_bin_op(&lhs, &rhs),
+        // Comparison
+        BinOpKind::More => eval_gt_bin_op(&lhs, &rhs),
+        BinOpKind::Less => eval_lt_bin_op(&lhs, &rhs),
         // List
         BinOpKind::Concat => eval_concat_bin_op(&lhs, &rhs),
         // Attrset
@@ -150,6 +154,56 @@ fn eval_bool(expr: &Expr) -> Result<bool, ()> {
         Value::Bool(value) => Ok(value),
         _ => todo!(),
     }
+}
+
+fn eval_gt_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Greater => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn eval_lt_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Less => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn partial_cmp(lhs: &Value, rhs: &Value) -> Result<Ordering, ()> {
+    match (lhs, rhs) {
+        (Value::Int(lhs_num), Value::Int(rhs_num)) => lhs_num.partial_cmp(rhs_num).ok_or(()),
+        (Value::Float(lhs_num), Value::Int(rhs_num)) => {
+            lhs_num.partial_cmp(&(*rhs_num as f64)).ok_or(())
+        }
+        (Value::Int(lhs_num), Value::Float(rhs_num)) => {
+            (*lhs_num as f64).partial_cmp(rhs_num).ok_or(())
+        }
+        (Value::Float(lhs_num), Value::Float(rhs_num)) => lhs_num.partial_cmp(rhs_num).ok_or(()),
+        (Value::Str(lhs_str), Value::Str(rhs_str)) => lhs_str.partial_cmp(rhs_str).ok_or(()),
+        (Value::List(lhs_list), Value::List(rhs_list)) => partial_cmp_list(lhs_list, rhs_list),
+        (Value::Bool(lhs_bool), Value::Bool(rhs_bool)) => lhs_bool.partial_cmp(rhs_bool).ok_or(()),
+        _ => todo!(),
+    }
+}
+
+fn partial_cmp_list(lhs_list: &Vec<Value>, rhs_list: &Vec<Value>) -> Result<Ordering, ()> {
+    if lhs_list.is_empty() {
+        if rhs_list.is_empty() {
+            return Ok(Ordering::Equal);
+        }
+        return Ok(Ordering::Less);
+    }
+    if rhs_list.is_empty() {
+        return Ok(Ordering::Greater);
+    }
+    for (lhs_value, rhs_value) in lhs_list.iter().zip(rhs_list.iter()) {
+        match partial_cmp(lhs_value, rhs_value)? {
+            Ordering::Equal => continue,
+            not_equal => return Ok(not_equal),
+        }
+    }
+    lhs_list.len().partial_cmp(&rhs_list.len()).ok_or(())
 }
 
 fn eval_concat_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
@@ -329,6 +383,58 @@ mod tests {
         assert_eq!(eval_ok("false || true && false"), Value::Bool(false));
         assert_eq!(eval_ok("false && true || false"), Value::Bool(false));
         assert_eq!(eval_ok("true -> false"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_comparison_gt_expr() {
+        assert_eq!(eval_ok("2 > 1"), Value::Bool(true));
+        assert_eq!(eval_ok("1.1 > 1"), Value::Bool(true));
+        assert_eq!(eval_ok("2 > 1.9"), Value::Bool(true));
+        assert_eq!(eval_ok("1.8 > 1.9"), Value::Bool(false));
+
+        assert_eq!(eval_ok(r#""b" > "a""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""ab" > "aa""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""ab" > "ac""#), Value::Bool(false));
+
+        assert_eq!(eval_ok("[] > []"), Value::Bool(false));
+        assert_eq!(eval_ok("[] > [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] > []"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] > [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[2] > [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1 1] > [1]"), Value::Bool(true));
+
+        assert_eq!(eval_ok("[true] > []"), Value::Bool(true));
+        assert_eq!(eval_ok("[true] > [true]"), Value::Bool(false));
+
+        // TODO: `nix` throws an error here because booleans can only be compared for equality.
+        // We have to make this fail.
+        // assert_eq!(eval_str("[true] > [false]"), Err(()));
+    }
+
+    #[test]
+    fn test_eval_comparison_lt_expr() {
+        assert_eq!(eval_ok("1 < 2"), Value::Bool(true));
+        assert_eq!(eval_ok("1 < 1.1"), Value::Bool(true));
+        assert_eq!(eval_ok("1.9 < 2"), Value::Bool(true));
+        assert_eq!(eval_ok("1.9 < 1.8"), Value::Bool(false));
+
+        assert_eq!(eval_ok(r#""a" < "b""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""aa" < "ab""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""ac" < "ab""#), Value::Bool(false));
+
+        assert_eq!(eval_ok("[] < []"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] < []"), Value::Bool(false));
+        assert_eq!(eval_ok("[] < [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] < [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] < [2]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] < [1 1]"), Value::Bool(true));
+
+        assert_eq!(eval_ok("[] < [true]"), Value::Bool(true));
+        assert_eq!(eval_ok("[true] < [true]"), Value::Bool(false));
+
+        // TODO: `nix` throws an error here because booleans can only be compared for equality.
+        // We have to make this fail.
+        // assert_eq!(eval_str("[false] < [true]"), Err(()));
     }
 
     #[test]
