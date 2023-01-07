@@ -82,12 +82,15 @@ fn eval_bin_op(bin_op: &BinOp) -> EvalResult {
         BinOpKind::Implication => eval_implication_bin_op(&lhs, &rhs),
         // Comparison
         BinOpKind::More => eval_gt_bin_op(&lhs, &rhs),
+        BinOpKind::MoreOrEq => eval_gt_or_eq_bin_op(&lhs, &rhs),
         BinOpKind::Less => eval_lt_bin_op(&lhs, &rhs),
+        BinOpKind::LessOrEq => eval_lt_or_eq_bin_op(&lhs, &rhs),
+        BinOpKind::Equal => eval_eq_bin_op(&lhs, &rhs),
+        BinOpKind::NotEqual => eval_neq_bin_op(&lhs, &rhs),
         // List
         BinOpKind::Concat => eval_concat_bin_op(&lhs, &rhs),
         // Attrset
         BinOpKind::Update => eval_update_bin_op(&lhs, &rhs),
-        _ => todo!("{:?}", operator),
     }
 }
 
@@ -163,10 +166,38 @@ fn eval_gt_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
     }
 }
 
+fn eval_gt_or_eq_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Greater | Ordering::Equal => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
 fn eval_lt_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
     match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
         Ordering::Less => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn eval_lt_or_eq_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Less | Ordering::Equal => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn eval_eq_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Equal => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn eval_neq_bin_op(lhs: &Expr, rhs: &Expr) -> EvalResult {
+    match partial_cmp(&eval_expr(lhs)?, &eval_expr(rhs)?)? {
+        Ordering::Equal => Ok(Value::Bool(false)),
+        _ => Ok(Value::Bool(true)),
     }
 }
 
@@ -412,6 +443,31 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_comparison_gt_or_eq_expr() {
+        assert_eq!(eval_ok("0 >= 1"), Value::Bool(false));
+        assert_eq!(eval_ok("1 >= 1"), Value::Bool(true));
+        assert_eq!(eval_ok("2 >= 1"), Value::Bool(true));
+
+        assert_eq!(eval_ok(r#""a" >= "b""#), Value::Bool(false));
+        assert_eq!(eval_ok(r#""b" >= "b""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""c" >= "b""#), Value::Bool(true));
+
+        assert_eq!(eval_ok("[] >= []"), Value::Bool(true));
+        assert_eq!(eval_ok("[] >= [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] >= []"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] >= [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[2] >= [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1 1] >= [1]"), Value::Bool(true));
+
+        assert_eq!(eval_ok("[true] >= []"), Value::Bool(true));
+        assert_eq!(eval_ok("[true] >= [true]"), Value::Bool(true));
+
+        // TODO: `nix` throws an error here because booleans can only be compared for equality.
+        // We have to make this fail.
+        // assert_eq!(eval_str("[true] >= [false]"), Err(()));
+    }
+
+    #[test]
     fn test_eval_comparison_lt_expr() {
         assert_eq!(eval_ok("1 < 2"), Value::Bool(true));
         assert_eq!(eval_ok("1 < 1.1"), Value::Bool(true));
@@ -435,6 +491,66 @@ mod tests {
         // TODO: `nix` throws an error here because booleans can only be compared for equality.
         // We have to make this fail.
         // assert_eq!(eval_str("[false] < [true]"), Err(()));
+    }
+
+    #[test]
+    fn test_eval_comparison_lt_or_eq_expr() {
+        assert_eq!(eval_ok("0 <= 1"), Value::Bool(true));
+        assert_eq!(eval_ok("1 <= 1"), Value::Bool(true));
+        assert_eq!(eval_ok("2 <= 1"), Value::Bool(false));
+
+        assert_eq!(eval_ok(r#""a" <= "b""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""b" <= "b""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""c" <= "b""#), Value::Bool(false));
+
+        assert_eq!(eval_ok("[] <= []"), Value::Bool(true));
+        assert_eq!(eval_ok("[] <= [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] <= []"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] <= [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[2] <= [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1 1] <= [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] <= [1 1]"), Value::Bool(true));
+
+        assert_eq!(eval_ok("[true] <= []"), Value::Bool(false));
+        assert_eq!(eval_ok("[true] <= [true]"), Value::Bool(true));
+
+        // TODO: `nix` throws an error here because booleans can only be compared for equality.
+        // We have to make this fail.
+        // assert_eq!(eval_str("[true] <= [false]"), Err(()));
+    }
+
+    #[test]
+    fn test_eval_comparison_eq_expr() {
+        assert_eq!(eval_ok("1 == 1"), Value::Bool(true));
+        assert_eq!(eval_ok("1 == 1.1"), Value::Bool(false));
+        assert_eq!(eval_ok("1 == 1.0"), Value::Bool(true));
+
+        assert_eq!(eval_ok(r#""a" == "a""#), Value::Bool(true));
+        assert_eq!(eval_ok(r#""aa" == "ab""#), Value::Bool(false));
+
+        assert_eq!(eval_ok("[] == []"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] == [1]"), Value::Bool(true));
+        assert_eq!(eval_ok("[1] == [1 1]"), Value::Bool(false));
+
+        assert_eq!(eval_ok("[true] == [true]"), Value::Bool(true));
+        assert_eq!(eval_ok("[true] == [false]"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_comparison_not_eq_expr() {
+        assert_eq!(eval_ok("1 != 1"), Value::Bool(false));
+        assert_eq!(eval_ok("1 != 1.1"), Value::Bool(true));
+        assert_eq!(eval_ok("1 != 1.0"), Value::Bool(false));
+
+        assert_eq!(eval_ok(r#""a" != "a""#), Value::Bool(false));
+        assert_eq!(eval_ok(r#""aa" != "ab""#), Value::Bool(true));
+
+        assert_eq!(eval_ok("[] != []"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] != [1]"), Value::Bool(false));
+        assert_eq!(eval_ok("[1] != [1 1]"), Value::Bool(true));
+
+        assert_eq!(eval_ok("[true] != [true]"), Value::Bool(false));
+        assert_eq!(eval_ok("[true] != [false]"), Value::Bool(true));
     }
 
     #[test]
