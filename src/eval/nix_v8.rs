@@ -1,22 +1,24 @@
 use std::sync::Once;
 
-use crate::eval::types::EvalResult;
+use rnix::{
+    ast::{Expr, Ident, UnaryOp, UnaryOpKind},
+    SyntaxKind, SyntaxToken,
+};
 
-use super::{nix_to_js, types::Value};
+use crate::eval::types::EvalResult;
+use crate::eval::types::Value;
 
 static INIT_V8: Once = Once::new();
 
 pub fn evaluate(nix_expr: &str) -> EvalResult {
-    run_js(&nix_to_js::str_to_js(nix_expr)?)
-}
-
-fn run_js(js_expr: &str) -> EvalResult {
     initialize_v8();
     let isolate = &mut v8::Isolate::new(Default::default());
     let scope = &mut v8::HandleScope::new(isolate);
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
+    let js_expr = nix_expr_to_js(nix_expr)?;
     let code = v8::String::new(scope, &js_expr).unwrap();
+    // TODO: Make this faster! Maybe we can use v8's compiled code caching to speed things up a notch?
     let script = v8::Script::compile(scope, code, None).unwrap();
     let result = script.run(scope).unwrap();
     js_value_to_nix(&result)
@@ -37,6 +39,46 @@ fn initialize_v8() {
     });
 }
 
+fn nix_expr_to_js(nix_expr: &str) -> Result<String, ()> {
+    // TODO: Make this faster! Don't transpile if it's already transpiled in a cache somewhere (filesystem)?
+    let root = rnix::Root::parse(nix_expr).tree();
+    let root_expr = root.expr().expect("Not implemented");
+    ast_to_js(&root_expr)
+}
+
+fn ast_to_js(nix_ast: &Expr) -> Result<String, ()> {
+    match nix_ast {
+        Expr::Ident(ident) => ident_to_js(&ident),
+        Expr::UnaryOp(unary_op) => unary_op_to_js(unary_op),
+        _ => panic!("Not implemented: {:?}", nix_ast),
+    }
+}
+
+fn ident_to_js(ident: &Ident) -> Result<String, ()> {
+    let token = ident.ident_token().expect("Not implemented");
+    match token.kind() {
+        SyntaxKind::TOKEN_IDENT => ident_token_to_js(&token),
+        _ => todo!(),
+    }
+}
+
+fn ident_token_to_js(token: &SyntaxToken) -> Result<String, ()> {
+    Ok(match token.text() {
+        "true" => "true".to_owned(),
+        "false" => "false".to_owned(),
+        _ => todo!(),
+    })
+}
+
+fn unary_op_to_js(unary_op: &UnaryOp) -> Result<String, ()> {
+    let operator = unary_op.operator().expect("Not implemented");
+    let operand = ast_to_js(&unary_op.expr().expect("Not implemented"))?;
+    match operator {
+        UnaryOpKind::Invert => Ok(format!("!({})", operand)),
+        _ => todo!(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::eval::types::Value;
@@ -51,5 +93,6 @@ mod tests {
     fn test_eval_bool_expr() {
         assert_eq!(eval_ok("true"), Value::Bool(true));
         assert_eq!(eval_ok("false"), Value::Bool(false));
+        assert_eq!(eval_ok("!false"), Value::Bool(true));
     }
 }
