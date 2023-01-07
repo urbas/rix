@@ -4,6 +4,10 @@
 
 A reimplementation of `nix` in Rust.
 
+Notable design choices:
+
+1. Nix expressions are transpiled to JavaScript and evaluated with V8. The idea is to leverage all the great work around the JS ecosystem (such as debuggers, fast JIT compilers, profilers, libraries, compiled code caching, just to name a few) and allow people to write their Nix expressions in JS too.
+
 # Progress
 
 ## New sub-commands
