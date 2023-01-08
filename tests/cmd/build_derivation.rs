@@ -170,10 +170,10 @@ struct TestData {
 
 impl TestData {
     pub fn new() -> Self {
-        let coreutils_closure = get_pkg_closure(".#coreutils");
+        let coreutils_closure = get_pkg_closure(".#pkgs.coreutils");
         let coreutils_drvs_closure = show_derivation(&coreutils_closure);
         TestData {
-            busybox_closure: get_pkg_closure(".#busybox-sandbox-shell"),
+            busybox_closure: get_pkg_closure(".#pkgs.busybox-sandbox-shell"),
             coreutils_closure: coreutils_closure,
             coreutils_drvs_closure: coreutils_drvs_closure,
         }
@@ -186,7 +186,7 @@ fn simple_derivation(
     out_dir: &Path,
     builder_script: &str,
 ) -> Derivation {
-    let coreutils = get_pkg_closure(".#coreutils");
+    let coreutils = get_pkg_closure(".#pkgs.coreutils");
     return test_derivation(
         tmp_dir,
         out_dir,
