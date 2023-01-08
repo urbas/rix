@@ -10,10 +10,18 @@ fn help() {
 }
 
 #[test]
-fn eval_int_arithmetic_expr() {
-    assert_cmd(&["--expr", "false"])
+fn eval_bool_expr() {
+    assert_cmd(&["--expr", "false || true"])
         .success()
-        .stdout(predicate::str::diff("false\n"))
+        .stdout(predicate::str::diff("true\n"))
+        .stderr(predicate::str::is_empty());
+}
+
+#[test]
+fn eval_int_arithmetic_expr() {
+    assert_cmd(&["--expr", "1 + 2 + 3"])
+        .success()
+        .stdout(predicate::str::diff("6\n"))
         .stderr(predicate::str::is_empty());
 }
 
