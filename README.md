@@ -6,7 +6,11 @@ A reimplementation of `nix` in Rust.
 
 Notable design choices:
 
-1. Nix expressions are transpiled to JavaScript and evaluated with V8. The idea is to leverage all the great work around the JS ecosystem (such as debuggers, fast JIT compilers, profilers, libraries, compiled code caching, just to name a few) and allow people to write their Nix expressions in JS too.
+1. Nix expressions are **transpiled to JavaScript and evaluated with V8**. The idea is to leverage all the great work around the JS ecosystem (such as debuggers, fast JIT compilers, profilers, libraries, compiled code caching, just to name a few) and allow people to write their Nix expressions in JS too.
+
+2. Use plain-old files and directories to store metadata (instead of a central SQLite database). The idea is to avoid the central choke-point and be more transparent (allow users to browse the store's metadata without having to learn about SQLite).
+
+3. Shard directories that contain huge amounts of hash-prefixed files (i.e., use paths like `/nix/store/ca/fe/xxzzxjyhvbll1c7bkswwy36nlafx-foo-1.2.3`).
 
 # Progress
 
