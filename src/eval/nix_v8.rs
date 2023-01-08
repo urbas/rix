@@ -17,12 +17,27 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let scope = &mut v8::HandleScope::new(isolate);
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
-    let js_expr = emit_top_level(nix_expr)?;
-    let code = v8::String::new(scope, &js_expr).unwrap();
+
+    let js_source = emit_module(nix_expr)?;
+    let v8_source = to_v8_source(scope, &js_source);
+
     // TODO: Make this faster! Maybe we can use v8's compiled code caching to speed things up a notch?
-    let script = v8::Script::compile(scope, code, None).unwrap();
-    let result = script.run(scope).unwrap();
-    js_value_to_nix(scope, &result)
+    let module = v8::script_compiler::compile_module(scope, v8_source).unwrap();
+    module
+        .instantiate_module(scope, resolve_module_callback)
+        .unwrap();
+    module.evaluate(scope).unwrap();
+
+    let namespace = module.get_module_namespace();
+    let namespace_obj = namespace.to_object(scope).unwrap();
+    let nix_value_attr = v8::String::new(scope, "nix_value").unwrap();
+    let nix_value: v8::Local<v8::Value> = namespace_obj
+        .get(scope, nix_value_attr.into())
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+    js_value_to_nix(scope, &nix_value)
 }
 
 fn initialize_v8() {
@@ -33,11 +48,17 @@ fn initialize_v8() {
     });
 }
 
-fn emit_top_level(nix_expr: &str) -> Result<String, ()> {
-    // TODO: Make this faster! Don't transpile if it's already transpiled in a cache somewhere (filesystem)?
+fn emit_module(nix_expr: &str) -> Result<String, ()> {
+    // TODO: Make this faster! Don't transpile if it's already transpiled in a cache.
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
-    emit_expr(&root_expr)
+    let body = emit_expr(&root_expr)?;
+    Ok(format!(
+        r#"// import {{NixToJs}} from 'nixjs';
+export const nix_value = {};
+"#,
+        body
+    ))
 }
 
 fn emit_expr(nix_ast: &Expr) -> Result<String, ()> {
@@ -115,6 +136,50 @@ fn js_value_to_nix(
     todo!(
         "js_value_to_nix({:?})",
         js_value.to_rust_string_lossy(scope)
+    )
+}
+
+fn to_v8_source(
+    scope: &mut v8::ContextScope<v8::HandleScope>,
+    js_code: &str,
+) -> v8::script_compiler::Source {
+    let code = v8::String::new(scope, js_code).unwrap();
+    let resource_name = v8::String::new(scope, "top_level").unwrap().into();
+    let source_map_url = v8::String::new(scope, "").unwrap().into();
+    let origin = v8::ScriptOrigin::new(
+        scope,
+        resource_name,
+        0,
+        0,
+        false,
+        0,
+        source_map_url,
+        false,
+        false,
+        true,
+    );
+    v8::script_compiler::Source::new(code, Some(&origin))
+}
+
+fn resolve_module_callback<'a>(
+    context: v8::Local<'a, v8::Context>,
+    _specifier: v8::Local<'a, v8::String>,
+    _import_assertions: v8::Local<'a, v8::FixedArray>,
+    _referrer: v8::Local<'a, v8::Module>,
+) -> Option<v8::Local<'a, v8::Module>> {
+    // TODO: figure out how to best ship the Nix Runtime JavaScript (NixJS) libraries.
+    // 1.) NixJS should be testable in the standard JS way (without builtins that require Rust code)
+    // 2.) Stack traces should refer back to the original nix code
+    // 3.) Must be able to attach a profiler to a rix evaluation
+    // 4.) Must be able to attach a debugger to a rix evaluation and add breakpoints straight to original nix code
+    let scope = &mut unsafe { v8::CallbackScope::new(context) };
+    let scope = &mut v8::HandleScope::new(scope);
+    // TODO: compile the module and return it, something along these lines:
+    // let source = v8::script_compiler::Source::new(specifier, Some(&origin));
+    // let module = v8::script_compiler::compile_module(scope, source).unwrap();
+    todo!(
+        "resolve_module_callback: {:?}",
+        _specifier.to_rust_string_lossy(scope)
     )
 }
 
