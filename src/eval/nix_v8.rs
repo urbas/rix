@@ -17,7 +17,7 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let scope = &mut v8::HandleScope::new(isolate);
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
-    let js_expr = nix_expr_to_js(nix_expr)?;
+    let js_expr = emit_top_level(nix_expr)?;
     let code = v8::String::new(scope, &js_expr).unwrap();
     // TODO: Make this faster! Maybe we can use v8's compiled code caching to speed things up a notch?
     let script = v8::Script::compile(scope, code, None).unwrap();
@@ -31,6 +31,74 @@ fn initialize_v8() {
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
     });
+}
+
+fn emit_top_level(nix_expr: &str) -> Result<String, ()> {
+    // TODO: Make this faster! Don't transpile if it's already transpiled in a cache somewhere (filesystem)?
+    let root = rnix::Root::parse(nix_expr).tree();
+    let root_expr = root.expr().expect("Not implemented");
+    emit_expr(&root_expr)
+}
+
+fn emit_expr(nix_ast: &Expr) -> Result<String, ()> {
+    match nix_ast {
+        Expr::BinOp(bin_op) => emit_bin_op(&bin_op),
+        Expr::Ident(ident) => emit_ident(&ident),
+        Expr::Literal(literal) => emit_literal(literal),
+        Expr::UnaryOp(unary_op) => emit_unary_op(unary_op),
+        _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
+    }
+}
+
+fn emit_bin_op(bin_op: &BinOp) -> Result<String, ()> {
+    let operator = bin_op.operator().expect("Not implemented");
+    let lhs = emit_expr(&bin_op.lhs().expect("Not implemented"))?;
+    let rhs = emit_expr(&bin_op.rhs().expect("Not implemented"))?;
+    match operator {
+        // Arithmetic
+        BinOpKind::Add => Ok(format!("{} + {}", lhs, rhs)),
+        BinOpKind::Div => Ok(format!("Math.floor({} / {})", lhs, rhs)),
+        BinOpKind::Mul => Ok(format!("{} * {}", lhs, rhs)),
+        BinOpKind::Sub => Ok(format!("{} - {}", lhs, rhs)),
+        // Boolean
+        BinOpKind::And => Ok(format!("{} && {}", lhs, rhs)),
+        BinOpKind::Implication => Ok(format!("!{} || {}", lhs, rhs)),
+        BinOpKind::Or => Ok(format!("{} || {}", lhs, rhs)),
+        _ => panic!("BinOp not implemented: {:?}", operator),
+    }
+}
+
+fn emit_ident(ident: &Ident) -> Result<String, ()> {
+    let token = ident.ident_token().expect("Not implemented");
+    match token.kind() {
+        SyntaxKind::TOKEN_IDENT => emit_ident_token(&token),
+        _ => todo!(),
+    }
+}
+
+fn emit_ident_token(token: &SyntaxToken) -> Result<String, ()> {
+    Ok(match token.text() {
+        "true" => "true".to_owned(),
+        "false" => "false".to_owned(),
+        _ => todo!(),
+    })
+}
+
+fn emit_literal(literal: &Literal) -> Result<String, ()> {
+    let token = literal.syntax().first_token().expect("Not implemented");
+    Ok(match token.kind() {
+        SyntaxKind::TOKEN_INTEGER => token.text().to_owned(),
+        _ => todo!("emit_literal: {:?}", literal),
+    })
+}
+
+fn emit_unary_op(unary_op: &UnaryOp) -> Result<String, ()> {
+    let operator = unary_op.operator().expect("Not implemented");
+    let operand = emit_expr(&unary_op.expr().expect("Not implemented"))?;
+    match operator {
+        UnaryOpKind::Invert => Ok(format!("!{}", operand)),
+        UnaryOpKind::Negate => Ok(format!("-{}", operand)),
+    }
 }
 
 fn js_value_to_nix(
@@ -48,74 +116,6 @@ fn js_value_to_nix(
         "js_value_to_nix({:?})",
         js_value.to_rust_string_lossy(scope)
     )
-}
-
-fn nix_expr_to_js(nix_expr: &str) -> Result<String, ()> {
-    // TODO: Make this faster! Don't transpile if it's already transpiled in a cache somewhere (filesystem)?
-    let root = rnix::Root::parse(nix_expr).tree();
-    let root_expr = root.expr().expect("Not implemented");
-    ast_to_js(&root_expr)
-}
-
-fn ast_to_js(nix_ast: &Expr) -> Result<String, ()> {
-    match nix_ast {
-        Expr::BinOp(bin_op) => bin_op_to_js(&bin_op),
-        Expr::Ident(ident) => ident_to_js(&ident),
-        Expr::Literal(literal) => literal_to_js(literal),
-        Expr::UnaryOp(unary_op) => unary_op_to_js(unary_op),
-        _ => panic!("ast_to_js: not implemented: {:?}", nix_ast),
-    }
-}
-
-fn bin_op_to_js(bin_op: &BinOp) -> Result<String, ()> {
-    let operator = bin_op.operator().expect("Not implemented");
-    let lhs = ast_to_js(&bin_op.lhs().expect("Not implemented"))?;
-    let rhs = ast_to_js(&bin_op.rhs().expect("Not implemented"))?;
-    match operator {
-        // Arithmetic
-        BinOpKind::Add => Ok(format!("{} + {}", lhs, rhs)),
-        BinOpKind::Div => Ok(format!("Math.floor({} / {})", lhs, rhs)),
-        BinOpKind::Mul => Ok(format!("{} * {}", lhs, rhs)),
-        BinOpKind::Sub => Ok(format!("{} - {}", lhs, rhs)),
-        // Boolean
-        BinOpKind::And => Ok(format!("{} && {}", lhs, rhs)),
-        BinOpKind::Implication => Ok(format!("!{} || {}", lhs, rhs)),
-        BinOpKind::Or => Ok(format!("{} || {}", lhs, rhs)),
-        _ => panic!("BinOp not implemented: {:?}", operator),
-    }
-}
-
-fn ident_to_js(ident: &Ident) -> Result<String, ()> {
-    let token = ident.ident_token().expect("Not implemented");
-    match token.kind() {
-        SyntaxKind::TOKEN_IDENT => ident_token_to_js(&token),
-        _ => todo!(),
-    }
-}
-
-fn ident_token_to_js(token: &SyntaxToken) -> Result<String, ()> {
-    Ok(match token.text() {
-        "true" => "true".to_owned(),
-        "false" => "false".to_owned(),
-        _ => todo!(),
-    })
-}
-
-fn literal_to_js(literal: &Literal) -> Result<String, ()> {
-    let token = literal.syntax().first_token().expect("Not implemented");
-    Ok(match token.kind() {
-        SyntaxKind::TOKEN_INTEGER => token.text().to_owned(),
-        _ => todo!("literal_to_js: {:?}", literal),
-    })
-}
-
-fn unary_op_to_js(unary_op: &UnaryOp) -> Result<String, ()> {
-    let operator = unary_op.operator().expect("Not implemented");
-    let operand = ast_to_js(&unary_op.expr().expect("Not implemented"))?;
-    match operator {
-        UnaryOpKind::Invert => Ok(format!("!{}", operand)),
-        UnaryOpKind::Negate => Ok(format!("-{}", operand)),
-    }
 }
 
 #[cfg(test)]
