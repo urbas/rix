@@ -17,8 +17,9 @@ cargo --version
 
 ## Editor
 
-1. Use your preferred method to put `rustup` into your editor's `PATH` or use
-   https://rustup.rs/
+You must follow the "Shell" instructions above to make sure the `.direnv`
+folder is populated. After that use your preferred method to put `rustup`
+into your editor's `PATH` or use https://rustup.rs/.
 
 Your editor should pick up the Rust toolchain as specified in
 `rust-toolchain.toml`.

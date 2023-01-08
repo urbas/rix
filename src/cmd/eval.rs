@@ -38,11 +38,11 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
 fn print_value(value: &Value) {
     match value {
         Value::AttrSet(hash_map) => print_attrset(&hash_map),
-        Value::Bool(boolean) => print!("{}", boolean),
-        Value::Float(float) => print!("{:.6}", float),
-        Value::Int(int) => print!("{}", int),
+        Value::Bool(boolean) => print!("{boolean}"),
+        Value::Float(float) => print!("{float}"),
+        Value::Int(int) => print!("{int}"),
         Value::List(vector) => print_list(vector),
-        Value::Str(string) => print!("\"{}\"", string),
+        Value::Str(string) => print!("\"{string}\""),
     }
 }
 
@@ -58,7 +58,7 @@ fn print_list(vector: &Vec<Value>) {
 fn print_attrset(hash_map: &HashMap<String, Value>) {
     print!("{{ ");
     for (attr_name, value) in hash_map {
-        print!("{} = ", attr_name);
+        print!("{attr_name} = ");
         print_value(value);
         print!("; ");
     }

@@ -18,10 +18,10 @@ fn eval_bool_expr() {
 }
 
 #[test]
-fn eval_int_arithmetic_expr() {
-    assert_cmd(&["--expr", "1 + 2 + 3"])
+fn eval_float_arithmetic_expr() {
+    assert_cmd(&["--expr", "3.0 * 4.0 + 1.0 / 2.0"])
         .success()
-        .stdout(predicate::str::diff("6\n"))
+        .stdout(predicate::str::diff("12.5\n"))
         .stderr(predicate::str::is_empty());
 }
 

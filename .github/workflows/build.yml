@@ -36,7 +36,7 @@ jobs:
             /home/runner/.rustup
             /home/runner/.cargo
             target
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml') }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml', '**/flake.lock') }}
 
       - name: Build
         run: |
