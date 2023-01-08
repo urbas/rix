@@ -53,8 +53,10 @@ fn emit_module(nix_expr: &str) -> Result<String, ()> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
     let body = emit_expr(&root_expr)?;
+    // TODO: find a way to extract the nixjs library into a separate module and import it
     Ok(format!(
-        r#"// import {{NixToJs}} from 'nixjs';
+        r#"// import {{nix2js}} from 'rix_v8://nix2js.v1.0.0';
+
 export const nix_value = {};
 "#,
         body
@@ -78,7 +80,7 @@ fn emit_bin_op(bin_op: &BinOp) -> Result<String, ()> {
     match operator {
         // Arithmetic
         BinOpKind::Add => Ok(format!("{} + {}", lhs, rhs)),
-        BinOpKind::Div => Ok(format!("Math.floor({} / {})", lhs, rhs)),
+        BinOpKind::Div => Ok(format!("{} / {}", lhs, rhs)),
         BinOpKind::Mul => Ok(format!("{} * {}", lhs, rhs)),
         BinOpKind::Sub => Ok(format!("{} - {}", lhs, rhs)),
         // Boolean
@@ -108,7 +110,7 @@ fn emit_ident_token(token: &SyntaxToken) -> Result<String, ()> {
 fn emit_literal(literal: &Literal) -> Result<String, ()> {
     let token = literal.syntax().first_token().expect("Not implemented");
     Ok(match token.kind() {
-        SyntaxKind::TOKEN_INTEGER => token.text().to_owned(),
+        SyntaxKind::TOKEN_INTEGER => format!("{}n", token.text()),
         _ => todo!("emit_literal: {:?}", literal),
     })
 }
@@ -129,12 +131,12 @@ fn js_value_to_nix(
     if js_value.is_boolean() {
         return Ok(Value::Bool(js_value.is_true()));
     }
-    if js_value.is_number() {
-        let number = js_value.to_number(scope).unwrap().value() as i64;
+    if js_value.is_big_int() {
+        let (number, _) = js_value.to_big_int(scope).unwrap().i64_value();
         return Ok(Value::Int(number));
     }
     todo!(
-        "js_value_to_nix({:?})",
+        "js_value_to_nix: {:?}",
         js_value.to_rust_string_lossy(scope)
     )
 }
@@ -195,17 +197,20 @@ mod tests {
 
     #[test]
     fn test_eval_int_literals() {
-        // TODO: JS doesn't support 64-bit integers. We have to implement this.
-        // assert_eq!(
-        //     eval_ok(&format!("{}", i64::MAX - 1)),
-        //     Value::Int(i64::MAX - 1)
-        // );
+        assert_eq!(
+            eval_ok(&format!("{}", i64::MAX - 1)),
+            Value::Int(i64::MAX - 1)
+        );
         assert_eq!(eval_ok(&format!("{}", i64::MAX)), Value::Int(i64::MAX));
         assert_eq!(eval_ok(&format!("{}", i64::MIN)), Value::Int(i64::MIN));
-        // assert_eq!(
-        //     eval_ok(&format!("{}", i64::MIN + 1)),
-        //     Value::Int(i64::MIN + 1)
-        // );
+        assert_eq!(
+            eval_ok(&format!("{}", i64::MIN + 1)),
+            Value::Int(i64::MIN + 1)
+        );
+
+        // Nix overflows, and so should we
+        assert_eq!(eval_ok(&format!("{} + 1", i64::MAX)), Value::Int(i64::MIN));
+        assert_eq!(eval_ok(&format!("{} - 1", i64::MIN)), Value::Int(i64::MAX));
     }
 
     #[test]
