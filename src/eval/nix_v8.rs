@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use rnix::{
-    ast::{BinOp, BinOpKind, Expr, Ident, Literal, UnaryOp, UnaryOpKind},
+    ast::{BinOp, BinOpKind, Expr, Ident, Literal, Paren, UnaryOp, UnaryOpKind},
     SyntaxKind, SyntaxToken,
 };
 use rowan::ast::AstNode;
@@ -59,9 +59,10 @@ fn emit_module(nix_expr: &str) -> Result<String, ()> {
 
 fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), ()> {
     match nix_ast {
-        Expr::BinOp(bin_op) => emit_bin_op(&bin_op, out_src),
-        Expr::Ident(ident) => emit_ident(&ident, out_src),
+        Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
+        Expr::Ident(ident) => emit_ident(ident, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
+        Expr::Paren(paren) => emit_paren(paren, out_src),
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
@@ -138,6 +139,16 @@ fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), ()> {
         SyntaxKind::TOKEN_FLOAT => *out_src += token.text(),
         _ => todo!("emit_literal: {:?}", literal),
     }
+    Ok(())
+}
+
+fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), ()> {
+    *out_src += "(";
+    let body = paren
+        .expr()
+        .expect("Unexpected parenthesis without a body.");
+    emit_expr(&body, out_src)?;
+    *out_src += ")";
     Ok(())
 }
 
@@ -282,8 +293,7 @@ fn resolve_module_callback<'a>(
     }
     let module_source_str = std::fs::read_to_string(env!("RIX_NIXRT_JS_MODULE")).unwrap();
     let module_source_v8 = to_v8_source(scope, &module_source_str);
-    let module = v8::script_compiler::compile_module(scope, module_source_v8).unwrap();
-    Some(module)
+    v8::script_compiler::compile_module(scope, module_source_v8)
 }
 
 #[cfg(test)]
@@ -323,6 +333,11 @@ mod tests {
         assert_eq!(eval_ok("1 - 2.0"), Value::Float(-1.0));
         assert_eq!(eval_ok("1 * 2.0"), Value::Float(2.0));
         assert_eq!(eval_ok("1 / 2.0"), Value::Float(0.5));
+    }
+
+    #[test]
+    fn test_eval_paren() {
+        assert_eq!(eval_ok("(1 + 2) * 3"), Value::Int(9));
     }
 
     #[test]
