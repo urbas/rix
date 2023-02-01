@@ -1,8 +1,8 @@
 use std::sync::Once;
 
 use rnix::{
-    ast::{BinOp, BinOpKind, Expr, Ident, Literal, Paren, UnaryOp, UnaryOpKind},
-    SyntaxKind, SyntaxToken,
+    ast::{BinOp, BinOpKind, Expr, Ident, Literal, Paren, Str, UnaryOp, UnaryOpKind},
+    NodeOrToken, SyntaxKind, SyntaxToken,
 };
 use rowan::ast::AstNode;
 
@@ -63,6 +63,7 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), ()> {
         Expr::Ident(ident) => emit_ident(ident, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
         Expr::Paren(paren) => emit_paren(paren, out_src),
+        Expr::Str(string) => eval_string_expr(string, out_src),
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
@@ -152,6 +153,21 @@ fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), ()> {
     Ok(())
 }
 
+fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), ()> {
+    let mut tokens = string.syntax().children_with_tokens();
+    if let None = tokens.next() {
+        todo!()
+    };
+    let Some(NodeOrToken:: Token(string_content)) = tokens.next() else {
+        todo!()
+    };
+    *out_src += "\"";
+    *out_src += string_content.text();
+    *out_src += "\"";
+    // Ok(Value::Str(string_content.text().to_owned()))
+    Ok(())
+}
+
 fn emit_unary_op(unary_op: &UnaryOp, out_src: &mut String) -> Result<(), ()> {
     let operator = unary_op.operator().expect("Not implemented");
     let operand = unary_op.expr().expect("Not implemented");
@@ -211,6 +227,27 @@ fn js_value_to_nix(
             .unwrap();
         return Ok(Value::Float(number));
     }
+    if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value) {
+        return Ok(value);
+    }
+    if js_value.is_big_int() {
+        let (number, _) = js_value.to_big_int(scope).unwrap().i64_value();
+        return Ok(Value::Int(number));
+    }
+    if let Some(value) = js_value_as_nix_string(scope, js_value) {
+        return Ok(value);
+    }
+    todo!(
+        "js_value_to_nix: {:?}",
+        js_value.to_rust_string_lossy(scope)
+    )
+}
+
+fn js_value_as_nix_int(
+    scope: &mut v8::ContextScope<v8::HandleScope>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Option<Value> {
     if js_value.is_object() {
         let nix_int_class_name = v8::String::new(scope, "NixInt").unwrap();
         let nixrt_nix_int = nixrt
@@ -225,7 +262,7 @@ fn js_value_to_nix(
         if is_nix_int {
             let nix_int_value_attr = v8::String::new(scope, "value").unwrap();
             let int_value = js_object.get(scope, nix_int_value_attr.into()).unwrap();
-            return Ok(Value::Int(
+            return Some(Value::Int(
                 int_value
                     .to_number(scope)
                     .unwrap()
@@ -235,14 +272,21 @@ fn js_value_to_nix(
         }
         todo!("{nixrt_nix_int:?}, is instance: {is_nix_int:?}")
     }
-    if js_value.is_big_int() {
-        let (number, _) = js_value.to_big_int(scope).unwrap().i64_value();
-        return Ok(Value::Int(number));
+    None
+}
+
+fn js_value_as_nix_string(
+    scope: &mut v8::ContextScope<v8::HandleScope>,
+    js_value: &v8::Local<v8::Value>,
+) -> Option<Value> {
+    if js_value.is_string() {
+        let string = js_value
+            .to_string(scope)
+            .unwrap()
+            .to_rust_string_lossy(scope);
+        return Some(Value::Str(string));
     }
-    todo!(
-        "js_value_to_nix: {:?}",
-        js_value.to_rust_string_lossy(scope)
-    )
+    None
 }
 
 fn new_script_origin<'s>(
@@ -338,6 +382,11 @@ mod tests {
     #[test]
     fn test_eval_paren() {
         assert_eq!(eval_ok("(1 + 2) * 3"), Value::Int(9));
+    }
+
+    #[test]
+    fn test_eval_string_expr() {
+        assert_eq!(eval_ok("\"Hello!\""), Value::Str("Hello!".to_owned()));
     }
 
     #[test]
