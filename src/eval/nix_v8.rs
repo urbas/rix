@@ -230,10 +230,6 @@ fn js_value_to_nix(
     if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value) {
         return Ok(value);
     }
-    if js_value.is_big_int() {
-        let (number, _) = js_value.to_big_int(scope).unwrap().i64_value();
-        return Ok(Value::Int(number));
-    }
     if let Some(value) = js_value_as_nix_string(scope, js_value) {
         return Ok(value);
     }
