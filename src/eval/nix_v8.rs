@@ -22,17 +22,18 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let source_v8 = to_v8_source(scope, &source_str);
     let module = v8::script_compiler::compile_module(scope, source_v8).unwrap();
 
-    {
-        let try_catch = &mut v8::TryCatch::new(scope);
-        if let None = module.instantiate_module(try_catch, resolve_module_callback) {
-            let exception = try_catch.exception().unwrap();
-            todo!(
-                "Instantiation failure: {:?}",
-                exception.to_rust_string_lossy(try_catch)
-            )
-        }
+    if let None = module.instantiate_module(scope, resolve_module_callback) {
+        todo!("Instantiation failure.")
     }
-    module.evaluate(scope).unwrap();
+    let Some(eval_result) = module.evaluate(scope) else {
+            todo!("evaluation failed")
+        };
+    let Ok(promise): Result<v8::Local<'_, v8::Promise>, _> = eval_result.try_into() else {
+            todo!("Expected a promise but didn't get it.")
+        };
+    if promise.state() != v8::PromiseState::Fulfilled {
+        return Err(());
+    }
     let namespace_obj = module.get_module_namespace().to_object(scope).unwrap();
     nix_value_from_module(scope, &namespace_obj)
 }
@@ -375,8 +376,18 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_string_expr() {
-        assert_eq!(eval_ok("\"Hello!\""), Value::Str("Hello!".to_owned()));
+    fn test_eval_string_literal() {
+        assert_eq!(eval_ok(r#""Hello!""#), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_string_concat_op() {
+        assert_eq!(eval_ok(r#""Hell" + "o!""#), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_string_multiplication_err() {
+        assert_eq!(evaluate(r#""b" * "a""#), Err(()));
     }
 
     #[test]
