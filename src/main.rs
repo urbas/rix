@@ -12,6 +12,7 @@ fn main() -> ExitCode {
         &cmd::eval::cmd(),
         &cmd::hash::cmd(),
         &cmd::show_derivation::cmd(),
+        &cmd::transpile::cmd(),
     ];
 
     for subcommand in subcommands {

@@ -45,12 +45,12 @@ fn initialize_v8() {
     });
 }
 
-fn emit_module(nix_expr: &str) -> Result<String, ()> {
+pub fn emit_module(nix_expr: &str) -> Result<String, ()> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
+    let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
     let mut out_src =
-        "import nixrt from 'nixrt/lib';\nexport const __nixrt = nixrt; export const __nix_value = "
-            .to_owned();
+        format!("import nixrt from '{nixrt_js_module}';\nexport const __nixrt = nixrt; export const __nix_value = ");
     emit_expr(&root_expr, &mut out_src)?;
     out_src += ";";
     // eprintln!("JS Source:\n```\n{out_src:?}\n```");
@@ -320,18 +320,12 @@ fn to_v8_source<'a>(scope: &mut v8::HandleScope, js_code: &str) -> v8::script_co
 
 fn resolve_module_callback<'a>(
     context: v8::Local<'a, v8::Context>,
-    _specifier: v8::Local<'a, v8::String>,
+    specifier: v8::Local<'a, v8::String>,
     _import_assertions: v8::Local<'a, v8::FixedArray>,
     _referrer: v8::Local<'a, v8::Module>,
 ) -> Option<v8::Local<'a, v8::Module>> {
     let scope = &mut unsafe { v8::CallbackScope::new(context) };
-    if _specifier.to_rust_string_lossy(scope) != "nixrt/lib" {
-        todo!(
-            "resolve_module_callback: {:?}",
-            _specifier.to_rust_string_lossy(scope),
-        )
-    }
-    let module_source_str = std::fs::read_to_string(env!("RIX_NIXRT_JS_MODULE")).unwrap();
+    let module_source_str = std::fs::read_to_string(specifier.to_rust_string_lossy(scope)).unwrap();
     let module_source_v8 = to_v8_source(scope, &module_source_str);
     v8::script_compiler::compile_module(scope, module_source_v8)
 }
