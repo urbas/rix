@@ -2,6 +2,7 @@ pub mod build_derivation;
 pub mod eval;
 pub mod hash;
 pub mod show_derivation;
+pub mod transpile;
 use clap::{ArgMatches, Command};
 use colored::*;
 use std::process::ExitCode;
