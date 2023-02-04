@@ -19,21 +19,16 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let scope = &mut v8::ContextScope::new(scope, context);
 
     let source_str = emit_module(nix_expr)?;
-    let source_v8 = to_v8_source(scope, &source_str);
+    let source_v8 = to_v8_source(scope, &source_str, "<eval string>");
     let module = v8::script_compiler::compile_module(scope, source_v8).unwrap();
 
     if let None = module.instantiate_module(scope, resolve_module_callback) {
         todo!("Instantiation failure.")
     }
-    let Some(eval_result) = module.evaluate(scope) else {
-            todo!("evaluation failed")
-        };
-    let Ok(promise): Result<v8::Local<'_, v8::Promise>, _> = eval_result.try_into() else {
-            todo!("Expected a promise but didn't get it.")
-        };
-    if promise.state() != v8::PromiseState::Fulfilled {
-        return Err(());
-    }
+    let Some(_) = module.evaluate(scope) else {
+        todo!("evaluation failed")
+    };
+
     let namespace_obj = module.get_module_namespace().to_object(scope).unwrap();
     nix_value_from_module(scope, &namespace_obj)
 }
@@ -50,11 +45,11 @@ pub fn emit_module(nix_expr: &str) -> Result<String, ()> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
-    let mut out_src =
-        format!("import nixrt from '{nixrt_js_module}';\nexport const __nixrt = nixrt; export const __nix_value = ");
+    let mut out_src = format!("import nixrt from '{nixrt_js_module}';\n");
+    out_src += "export const __nixrt = nixrt;\n";
+    out_src += "export const __nixValue = () => ";
     emit_expr(&root_expr, &mut out_src)?;
-    out_src += ";";
-    // eprintln!("JS Source:\n```\n{out_src:?}\n```");
+    out_src += ";\n";
     Ok(out_src)
 }
 
@@ -165,7 +160,6 @@ fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), ()> {
     *out_src += "\"";
     *out_src += string_content.text();
     *out_src += "\"";
-    // Ok(Value::Str(string_content.text().to_owned()))
     Ok(())
 }
 
@@ -198,11 +192,20 @@ fn nix_value_from_module(
     scope: &mut v8::ContextScope<v8::HandleScope>,
     namespace_obj: &v8::Local<v8::Object>,
 ) -> EvalResult {
-    let nix_value_attr = v8::String::new(scope, "__nix_value").unwrap();
+    let nix_value_attr = v8::String::new(scope, "__nixValue").unwrap();
     let Some(nix_value) = namespace_obj
         .get(scope, nix_value_attr.into()) else {
-            todo!("Namespace obj: {:?}", namespace_obj.to_rust_string_lossy(scope))
+            todo!("Could not find the nix value: {:?}", namespace_obj.to_rust_string_lossy(scope))
         };
+    let nix_value: v8::Local<v8::Function> =
+        nix_value.try_into().expect("Nix value must be a function.");
+
+    let scope = &mut v8::TryCatch::new(scope);
+    let recv = v8::undefined(scope).into();
+    let Some(nix_value) = nix_value.call(scope, recv, &[]) else {
+        return Err(());
+    };
+
     let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
     let nixrt: v8::Local<v8::Value> = namespace_obj
         .get(scope, nixrt_attr.into())
@@ -212,8 +215,8 @@ fn nix_value_from_module(
     js_value_to_nix(scope, &nixrt, &nix_value)
 }
 
-fn js_value_to_nix(
-    scope: &mut v8::ContextScope<v8::HandleScope>,
+fn js_value_to_nix<'s>(
+    scope: &mut v8::HandleScope<'s>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> EvalResult {
@@ -240,8 +243,8 @@ fn js_value_to_nix(
     )
 }
 
-fn js_value_as_nix_int(
-    scope: &mut v8::ContextScope<v8::HandleScope>,
+fn js_value_as_nix_int<'s>(
+    scope: &mut v8::HandleScope<'s>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> Option<Value> {
@@ -272,8 +275,8 @@ fn js_value_as_nix_int(
     None
 }
 
-fn js_value_as_nix_string(
-    scope: &mut v8::ContextScope<v8::HandleScope>,
+fn js_value_as_nix_string<'s>(
+    scope: &mut v8::HandleScope<'s>,
     js_value: &v8::Local<v8::Value>,
 ) -> Option<Value> {
     if js_value.is_string() {
@@ -289,14 +292,15 @@ fn js_value_as_nix_string(
 fn new_script_origin<'s>(
     scope: &mut v8::HandleScope<'s>,
     resource_name: &str,
+    source_map_url: &str,
 ) -> v8::ScriptOrigin<'s> {
     let resource_name_v8_str = v8::String::new(scope, resource_name).unwrap();
     let resource_line_offset = 0;
     let resource_column_offset = 0;
     let resource_is_shared_cross_origin = true;
     let script_id = 123;
-    let source_map_url = v8::String::new(scope, "source_map_url").unwrap();
-    let resource_is_opaque = true;
+    let source_map_url = v8::String::new(scope, source_map_url).unwrap();
+    let resource_is_opaque = false;
     let is_wasm = false;
     let is_module = true;
     v8::ScriptOrigin::new(
@@ -313,9 +317,13 @@ fn new_script_origin<'s>(
     )
 }
 
-fn to_v8_source<'a>(scope: &mut v8::HandleScope, js_code: &str) -> v8::script_compiler::Source {
+fn to_v8_source<'a>(
+    scope: &mut v8::HandleScope,
+    js_code: &str,
+    source_path: &str,
+) -> v8::script_compiler::Source {
     let code = v8::String::new(scope, js_code).unwrap();
-    let origin = new_script_origin(scope, "top_level.mjs");
+    let origin = new_script_origin(scope, source_path, &format!("file://{source_path}.map"));
     v8::script_compiler::Source::new(code, Some(&origin))
 }
 
@@ -326,8 +334,9 @@ fn resolve_module_callback<'a>(
     _referrer: v8::Local<'a, v8::Module>,
 ) -> Option<v8::Local<'a, v8::Module>> {
     let scope = &mut unsafe { v8::CallbackScope::new(context) };
-    let module_source_str = std::fs::read_to_string(specifier.to_rust_string_lossy(scope)).unwrap();
-    let module_source_v8 = to_v8_source(scope, &module_source_str);
+    let module_path = specifier.to_rust_string_lossy(scope);
+    let module_source_str = std::fs::read_to_string(&module_path).unwrap();
+    let module_source_v8 = to_v8_source(scope, &module_source_str, &module_path);
     v8::script_compiler::compile_module(scope, module_source_v8)
 }
 

@@ -13,7 +13,9 @@ fn transpile_help() {
 fn transpile_bool_expr() {
     assert_cmd(&["--expr", "1.0"])
         .success()
-        .stdout(predicate::str::contains("export const __nix_value = 1.0;"))
+        .stdout(predicate::str::contains(
+            "export const __nixValue = () => 1.0;\n",
+        ))
         .stderr(predicate::str::is_empty());
 }
 
