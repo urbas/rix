@@ -28,7 +28,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     if *is_expression {
         let js_source = nix_v8::emit_module(&expression)
             .map_err(|_err| "Failed to transpile the expression.".to_owned())?;
-        println!("{}", js_source);
+        print!("{js_source}");
     } else {
         todo!("Support to transpile files is not yet implemented.")
     }
