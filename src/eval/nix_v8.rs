@@ -41,7 +41,7 @@ fn initialize_v8() {
     });
 }
 
-pub fn emit_module(nix_expr: &str) -> Result<String, ()> {
+pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
@@ -53,7 +53,7 @@ pub fn emit_module(nix_expr: &str) -> Result<String, ()> {
     Ok(out_src)
 }
 
-fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), ()> {
+fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
         Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
         Expr::Ident(ident) => emit_ident(ident, out_src),
@@ -65,7 +65,7 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), ()> {
     }
 }
 
-fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), ()> {
+fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
     let operator = bin_op.operator().expect("Not implemented");
     let lhs = &bin_op.lhs().expect("Not implemented");
     let rhs = &bin_op.rhs().expect("Not implemented");
@@ -89,7 +89,7 @@ fn emit_nixrt_bin_op(
     rhs: &Expr,
     nixrt_function: &str,
     out_src: &mut String,
-) -> Result<(), ()> {
+) -> Result<(), String> {
     *out_src += nixrt_function;
     *out_src += "(";
     emit_expr(lhs, out_src)?;
@@ -104,19 +104,19 @@ fn emit_regular_bin_op(
     rhs: &Expr,
     operator: &str,
     out_src: &mut String,
-) -> Result<(), ()> {
+) -> Result<(), String> {
     emit_expr(lhs, out_src)?;
     *out_src += operator;
     emit_expr(rhs, out_src)
 }
 
-fn emit_implication_bin_op(lhs: &Expr, rhs: &Expr, out_src: &mut String) -> Result<(), ()> {
+fn emit_implication_bin_op(lhs: &Expr, rhs: &Expr, out_src: &mut String) -> Result<(), String> {
     emit_unary_op_kind(UnaryOpKind::Invert, lhs, out_src)?;
     *out_src += " || ";
     emit_expr(rhs, out_src)
 }
 
-fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), ()> {
+fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), String> {
     let token = ident.ident_token().expect("Not implemented");
     match token.kind() {
         SyntaxKind::TOKEN_IDENT => emit_ident_token(&token, out_src),
@@ -124,12 +124,12 @@ fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), ()> {
     }
 }
 
-fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), ()> {
+fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), String> {
     *out_src += token.text();
     Ok(())
 }
 
-fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), ()> {
+fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), String> {
     let token = literal.syntax().first_token().expect("Not implemented");
     match token.kind() {
         SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({})", token.text()),
@@ -139,7 +139,7 @@ fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), ()> {
     Ok(())
 }
 
-fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), ()> {
+fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), String> {
     *out_src += "(";
     let body = paren
         .expr()
@@ -149,7 +149,7 @@ fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), ()> {
     Ok(())
 }
 
-fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), ()> {
+fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
     let mut tokens = string.syntax().children_with_tokens();
     if let None = tokens.next() {
         todo!()
@@ -163,7 +163,7 @@ fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), ()> {
     Ok(())
 }
 
-fn emit_unary_op(unary_op: &UnaryOp, out_src: &mut String) -> Result<(), ()> {
+fn emit_unary_op(unary_op: &UnaryOp, out_src: &mut String) -> Result<(), String> {
     let operator = unary_op.operator().expect("Not implemented");
     let operand = unary_op.expr().expect("Not implemented");
     emit_unary_op_kind(operator, &operand, out_src)
@@ -173,7 +173,7 @@ fn emit_unary_op_kind(
     operator: UnaryOpKind,
     operand: &Expr,
     out_src: &mut String,
-) -> Result<(), ()> {
+) -> Result<(), String> {
     match operator {
         UnaryOpKind::Invert => {
             *out_src += "!";
@@ -203,7 +203,15 @@ fn nix_value_from_module(
     let scope = &mut v8::TryCatch::new(scope);
     let recv = v8::undefined(scope).into();
     let Some(nix_value) = nix_value.call(scope, recv, &[]) else {
-        return Err(());
+        // TODO: The stack trace needs to be source-mapped. Unfortunately, this doesn't
+        // seem to be supported yet: https://github.com/denoland/deno/issues/4499
+        let err_msg = scope
+            .stack_trace()
+            .map_or(
+                "Unknown evaluation error.".to_owned(),
+                |stack| stack.to_rust_string_lossy(scope),
+            );
+        return Err(err_msg);
     };
 
     let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
@@ -396,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_eval_string_multiplication_err() {
-        assert_eq!(evaluate(r#""b" * "a""#), Err(()));
+        assert!(evaluate(r#""b" * "a""#).is_err());
     }
 
     #[test]
