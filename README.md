@@ -17,6 +17,7 @@ Notable design choices:
 ## New sub-commands
 
 - 🌗 `build-derivation`: builds a derivation in a sandbox.
+
   - 🌕 stage 0: creates a sandbox.
   - 🌕 stage 1: builds derivations without dependencies.
   - 🌗 stage 2: builds derivations with dependencies.
@@ -26,6 +27,8 @@ Notable design choices:
     - TODO: mount runtime dependencies of output paths too.
   - 🌑 stage 3: builds fixed derivations (with internet access).
   - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies are present).
+
+- `transpile`: converts the given nix expression into JavaScript and prints it to stdout.
 
 ## Nix sub-commands
 
