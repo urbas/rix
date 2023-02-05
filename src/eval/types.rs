@@ -10,4 +10,4 @@ pub enum Value {
     Str(String),
 }
 
-pub type EvalResult = Result<Value, ()>;
+pub type EvalResult = Result<Value, String>;

@@ -27,10 +27,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
     let expr = parsed_args
         .get_one::<String>("expr")
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;
-    let Ok(value) = nix_v8::evaluate(expr) else {
-        return Err("Evaluation failed.".to_owned());
-    };
-    print_value(&value);
+    print_value(&nix_v8::evaluate(expr)?);
     println!();
     Ok(())
 }
