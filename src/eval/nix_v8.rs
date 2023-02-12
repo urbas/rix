@@ -76,10 +76,14 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
         BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
         BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
         BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
+
         // Boolean
         BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
         BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
         BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
+
+        // List
+        BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
         _ => panic!("BinOp not implemented: {:?}", operator),
     }
     Ok(())
@@ -464,6 +468,14 @@ mod tests {
                 Value::Bool(true),
                 Value::Str("answer".to_owned())
             ])
+        );
+    }
+
+    #[test]
+    fn test_eval_list_concat() {
+        assert_eq!(
+            eval_ok("[1] ++ [2]"),
+            Value::List(vec![Value::Int(1), Value::Int(2)])
         );
     }
 }
