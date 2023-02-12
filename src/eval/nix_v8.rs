@@ -1,7 +1,7 @@
 use std::sync::Once;
 
 use rnix::{
-    ast::{BinOp, BinOpKind, Expr, Ident, Literal, Paren, Str, UnaryOp, UnaryOpKind},
+    ast::{BinOp, BinOpKind, Expr, Ident, List, Literal, Paren, Str, UnaryOp, UnaryOpKind},
     NodeOrToken, SyntaxKind, SyntaxToken,
 };
 use rowan::ast::AstNode;
@@ -57,6 +57,7 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
         Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
         Expr::Ident(ident) => emit_ident(ident, out_src),
+        Expr::List(list) => emit_list(list, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
         Expr::Paren(paren) => emit_paren(paren, out_src),
         Expr::Str(string) => eval_string_expr(string, out_src),
@@ -109,6 +110,16 @@ fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), String> {
 
 fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), String> {
     *out_src += token.text();
+    Ok(())
+}
+
+fn emit_list(list: &List, out_src: &mut String) -> Result<(), String> {
+    *out_src += "[";
+    for element in list.items() {
+        emit_expr(&element, out_src)?;
+        *out_src += ",";
+    }
+    *out_src += "]";
     Ok(())
 }
 
@@ -232,6 +243,9 @@ fn js_value_to_nix<'s>(
     if let Some(value) = js_value_as_nix_string(scope, js_value) {
         return Ok(value);
     }
+    if let Some(value) = js_value_as_nix_array(scope, nixrt, js_value) {
+        return value;
+    }
     todo!(
         "js_value_to_nix: {:?}",
         js_value.to_rust_string_lossy(scope)
@@ -265,7 +279,6 @@ fn js_value_as_nix_int<'s>(
                     .unwrap() as i64,
             ));
         }
-        todo!("{nixrt_nix_int:?}, is instance: {is_nix_int:?}")
     }
     None
 }
@@ -282,6 +295,29 @@ fn js_value_as_nix_string<'s>(
         return Some(Value::Str(string));
     }
     None
+}
+
+fn js_value_as_nix_array<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Option<EvalResult> {
+    let js_array: Result<v8::Local<v8::Array>, _> = (*js_value).try_into();
+    match js_array {
+        Ok(js_array) => {
+            let length = js_array.length();
+            let mut rust_array = Vec::with_capacity(length as usize);
+            for idx in 0..length {
+                let js_element = js_array.get_index(scope, idx).unwrap();
+                match js_value_to_nix(scope, nixrt, &js_element) {
+                    Ok(value) => rust_array.push(value),
+                    err => return Some(err),
+                }
+            }
+            return Some(Ok(Value::List(rust_array)));
+        }
+        Err(_) => None,
+    }
 }
 
 fn new_script_origin<'s>(
@@ -416,5 +452,18 @@ mod tests {
         assert!(evaluate("1 -> true").is_err());
         assert!(evaluate("true -> 1").is_err());
         assert!(evaluate("!1").is_err());
+    }
+
+    #[test]
+    fn test_eval_list_literal() {
+        assert_eq!(eval_ok("[]"), Value::List(vec![]));
+        assert_eq!(
+            eval_ok(r#"[42 true "answer"]"#),
+            Value::List(vec![
+                Value::Int(42),
+                Value::Bool(true),
+                Value::Str("answer".to_owned())
+            ])
+        );
     }
 }
