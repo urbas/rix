@@ -76,9 +76,9 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
         BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
         BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
         // Boolean
-        BinOpKind::And => emit_regular_bin_op(lhs, rhs, "&&", out_src)?,
-        BinOpKind::Implication => emit_implication_bin_op(lhs, rhs, out_src)?,
-        BinOpKind::Or => emit_regular_bin_op(lhs, rhs, "||", out_src)?,
+        BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
+        BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
+        BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
         _ => panic!("BinOp not implemented: {:?}", operator),
     }
     Ok(())
@@ -97,23 +97,6 @@ fn emit_nixrt_bin_op(
     emit_expr(rhs, out_src)?;
     *out_src += ")";
     Ok(())
-}
-
-fn emit_regular_bin_op(
-    lhs: &Expr,
-    rhs: &Expr,
-    operator: &str,
-    out_src: &mut String,
-) -> Result<(), String> {
-    emit_expr(lhs, out_src)?;
-    *out_src += operator;
-    emit_expr(rhs, out_src)
-}
-
-fn emit_implication_bin_op(lhs: &Expr, rhs: &Expr, out_src: &mut String) -> Result<(), String> {
-    emit_unary_op_kind(UnaryOpKind::Invert, lhs, out_src)?;
-    *out_src += " || ";
-    emit_expr(rhs, out_src)
 }
 
 fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), String> {
@@ -175,16 +158,20 @@ fn emit_unary_op_kind(
     out_src: &mut String,
 ) -> Result<(), String> {
     match operator {
-        UnaryOpKind::Invert => {
-            *out_src += "!";
-            emit_expr(operand, out_src)?;
-        }
-        UnaryOpKind::Negate => {
-            *out_src += "nixrt.neg(";
-            emit_expr(operand, out_src)?;
-            *out_src += ")";
-        }
+        UnaryOpKind::Invert => emit_nixrt_unary_op(operand, "nixrt.invert", out_src),
+        UnaryOpKind::Negate => emit_nixrt_unary_op(operand, "nixrt.neg", out_src),
     }
+}
+
+fn emit_nixrt_unary_op(
+    operand: &Expr,
+    nixrt_function: &str,
+    out_src: &mut String,
+) -> Result<(), String> {
+    *out_src += nixrt_function;
+    *out_src += "(";
+    emit_expr(operand, out_src)?;
+    *out_src += ")";
     Ok(())
 }
 
@@ -418,5 +405,16 @@ mod tests {
         assert_eq!(eval_ok("false || true && false"), Value::Bool(false));
         assert_eq!(eval_ok("false && true || false"), Value::Bool(false));
         assert_eq!(eval_ok("true -> false"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_bool_and_non_bool_err() {
+        assert!(evaluate("true && 1").is_err());
+        assert!(evaluate("1 && true").is_err());
+        assert!(evaluate("1 || true").is_err());
+        assert!(evaluate("false || 1").is_err());
+        assert!(evaluate("1 -> true").is_err());
+        assert!(evaluate("true -> 1").is_err());
+        assert!(evaluate("!1").is_err());
     }
 }
