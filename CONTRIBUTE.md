@@ -28,7 +28,11 @@ Your editor should pick up the Rust toolchain as specified in
 
 The typical Rust way:
 
-```
+```bash
 cargo build
 cargo test
+
+# Examples of how to run rix in debug mode
+cargo run -- --help
+cargo run -- eval --expr '1 + 1'
 ```

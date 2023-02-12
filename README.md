@@ -4,7 +4,13 @@
 
 A reimplementation of `nix` in Rust.
 
-Notable design choices:
+# Trying it out
+
+Currently `rix` is not published anywhere, so you'll have to build it yourself. Please follow instructions in [`CONTRIBUTE.md`](./CONTRIBUTE.md) on how to build and run `rix`.
+
+Keep in mind that `rix` is still in development and many features are not yet implemented.
+
+# Notable design choices
 
 1. Nix expressions are **transpiled to JavaScript and evaluated with V8**. The idea is to leverage all the great work around the JS ecosystem (such as debuggers, fast JIT compilers, profilers, libraries, compiled code caching, just to name a few) and allow people to write their Nix expressions in JS too.
 
