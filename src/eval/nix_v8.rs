@@ -83,10 +83,12 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
         BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
 
         // Comparison
+        BinOpKind::Equal => emit_nixrt_bin_op(lhs, rhs, "nixrt.eq", out_src)?,
         BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "nixrt.less", out_src)?,
         BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.less_eq", out_src)?,
         BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "nixrt.more", out_src)?,
         BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.more_eq", out_src)?,
+        BinOpKind::NotEqual => emit_nixrt_bin_op(lhs, rhs, "nixrt.neq", out_src)?,
 
         // List
         BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
@@ -498,5 +500,11 @@ mod tests {
 
         assert_eq!(eval_ok("1 >= 2"), Value::Bool(false));
         assert_eq!(eval_ok("2 >= 2"), Value::Bool(true));
+    }
+
+    #[test]
+    fn test_eval_eq() {
+        assert_eq!(eval_ok("1 == 1"), Value::Bool(true));
+        assert_eq!(eval_ok("1 != 1"), Value::Bool(false));
     }
 }
