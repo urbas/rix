@@ -82,6 +82,12 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
         BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
         BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
 
+        // Comparison
+        BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "nixrt.less", out_src)?,
+        BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.less_eq", out_src)?,
+        BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "nixrt.more", out_src)?,
+        BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.more_eq", out_src)?,
+
         // List
         BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
         _ => panic!("BinOp not implemented: {:?}", operator),
@@ -477,5 +483,20 @@ mod tests {
             eval_ok("[1] ++ [2]"),
             Value::List(vec![Value::Int(1), Value::Int(2)])
         );
+    }
+
+    #[test]
+    fn test_eval_comparison() {
+        assert_eq!(eval_ok("1 < 2"), Value::Bool(true));
+        assert_eq!(eval_ok("2 < 2"), Value::Bool(false));
+
+        assert_eq!(eval_ok("2 <= 2"), Value::Bool(true));
+        assert_eq!(eval_ok("3 <= 2"), Value::Bool(false));
+
+        assert_eq!(eval_ok("2 > 2"), Value::Bool(false));
+        assert_eq!(eval_ok("3 > 2"), Value::Bool(true));
+
+        assert_eq!(eval_ok("1 >= 2"), Value::Bool(false));
+        assert_eq!(eval_ok("2 >= 2"), Value::Bool(true));
     }
 }
