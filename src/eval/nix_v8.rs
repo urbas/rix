@@ -1,7 +1,10 @@
-use std::sync::Once;
+use std::{collections::HashMap, sync::Once};
 
 use rnix::{
-    ast::{BinOp, BinOpKind, Expr, Ident, List, Literal, Paren, Str, UnaryOp, UnaryOpKind},
+    ast::{
+        AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, List, Literal, Paren, Str,
+        UnaryOp, UnaryOpKind,
+    },
     NodeOrToken, SyntaxKind, SyntaxToken,
 };
 use rowan::ast::AstNode;
@@ -47,14 +50,15 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
     let mut out_src = format!("import nixrt from '{nixrt_js_module}';\n");
     out_src += "export const __nixrt = nixrt;\n";
-    out_src += "export const __nixValue = () => ";
+    out_src += "export const __nixValue = () => {return ";
     emit_expr(&root_expr, &mut out_src)?;
-    out_src += ";\n";
+    out_src += ";};\n";
     Ok(out_src)
 }
 
 fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
+        Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
         Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
         Expr::Ident(ident) => emit_ident(ident, out_src),
         Expr::List(list) => emit_list(list, out_src),
@@ -64,6 +68,34 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
+}
+
+fn emit_attrset(attrset: &AttrSet, out_src: &mut String) -> Result<(), String> {
+    *out_src += "new Map()";
+
+    for attrpath_value in attrset.attrpath_values() {
+        *out_src += ".set(";
+        let attrpath = attrpath_value.attrpath().expect("Not implemented");
+        let value = &attrpath_value.value().expect("Not implemented");
+        emit_attrpath(&attrpath, out_src)?;
+        *out_src += ",";
+        emit_expr(value, out_src)?;
+        *out_src += ")";
+    }
+    Ok(())
+}
+
+fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String> {
+    let Some(attr) = attrpath.attrs().next() else {
+        todo!()
+    };
+    let Ok(ident) = Ident::try_from(attr) else {
+        todo!()
+    };
+    *out_src += "\"";
+    *out_src += ident.ident_token().expect("Not implemented").text();
+    *out_src += "\"";
+    Ok(())
 }
 
 fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
@@ -258,6 +290,9 @@ fn js_value_to_nix<'s>(
     if let Some(value) = js_value_as_nix_array(scope, nixrt, js_value) {
         return value;
     }
+    if let Some(value) = js_value_as_attrset(scope, nixrt, js_value) {
+        return value;
+    }
     todo!(
         "js_value_to_nix: {:?}",
         js_value.to_rust_string_lossy(scope)
@@ -330,6 +365,44 @@ fn js_value_as_nix_array<'s>(
         }
         Err(_) => None,
     }
+}
+
+fn js_value_as_attrset<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Option<EvalResult> {
+    let js_map: Result<v8::Local<v8::Map>, _> = (*js_value).try_into();
+    match js_map {
+        Ok(js_map) => Some(js_map_as_attrset(scope, nixrt, &js_map)),
+        Err(_) => None,
+    }
+}
+
+fn js_map_as_attrset<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_map: &v8::Local<v8::Map>,
+) -> EvalResult {
+    let mut map: HashMap<String, Value> = HashMap::new();
+    let js_map_array = js_map.as_array(scope);
+    for idx in 0..js_map_array.length() / 2 {
+        let key_idx = idx * 2;
+        let value_idx = key_idx + 1;
+        let key: v8::Local<v8::String> = js_map_array
+            .get_index(scope, key_idx)
+            .expect("Not Implemented")
+            .try_into()
+            .expect("Not Implemented");
+        let value = js_map_array
+            .get_index(scope, value_idx)
+            .expect("Not Implemented");
+        map.insert(
+            key.to_rust_string_lossy(scope),
+            js_value_to_nix(scope, nixrt, &value)?,
+        );
+    }
+    Ok(Value::AttrSet(map))
 }
 
 fn new_script_origin<'s>(
@@ -506,5 +579,14 @@ mod tests {
     fn test_eval_eq() {
         assert_eq!(eval_ok("1 == 1"), Value::Bool(true));
         assert_eq!(eval_ok("1 != 1"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_attrset_literal() {
+        assert_eq!(eval_ok("{}"), Value::AttrSet(HashMap::new()));
+        assert_eq!(
+            eval_ok("{a = 1;}"),
+            Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(1))]))
+        );
     }
 }
