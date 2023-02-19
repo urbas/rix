@@ -170,7 +170,7 @@ fn emit_list(list: &List, out_src: &mut String) -> Result<(), String> {
 fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), String> {
     let token = literal.syntax().first_token().expect("Not implemented");
     match token.kind() {
-        SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({})", token.text()),
+        SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({}n)", token.text()),
         SyntaxKind::TOKEN_FLOAT => *out_src += token.text(),
         _ => todo!("emit_literal: {:?}", literal),
     }
@@ -316,15 +316,13 @@ fn js_value_as_nix_int<'s>(
         let js_object = js_value.to_object(scope).unwrap();
         let is_nix_int = js_object.instance_of(scope, nixrt_nix_int).unwrap();
         if is_nix_int {
-            let nix_int_value_attr = v8::String::new(scope, "value").unwrap();
-            let int_value = js_object.get(scope, nix_int_value_attr.into()).unwrap();
-            return Some(Value::Int(
-                int_value
-                    .to_number(scope)
-                    .unwrap()
-                    .number_value(scope)
-                    .unwrap() as i64,
-            ));
+            let nix_int_value_attr = v8::String::new(scope, "int64").unwrap();
+            let big_int_value: v8::Local<v8::BigInt> = js_object
+                .get(scope, nix_int_value_attr.into())
+                .unwrap()
+                .try_into()
+                .expect("Expected an int64 value");
+            return Some(Value::Int(big_int_value.i64_value().0));
         }
     }
     None
