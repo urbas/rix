@@ -103,6 +103,9 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
     let lhs = &bin_op.lhs().expect("Not implemented");
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
+        // List
+        BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
+
         // Arithmetic
         BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "nixrt.add", out_src)?,
         BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
@@ -124,7 +127,6 @@ fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
 
         // List
         BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
-        _ => panic!("BinOp not implemented: {:?}", operator),
     }
     Ok(())
 }
@@ -586,5 +588,20 @@ mod tests {
             eval_ok("{a = 1;}"),
             Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(1))]))
         );
+    }
+
+    #[test]
+    fn test_eval_update_attrset() {
+        assert_eq!(eval_ok("{} // {}"), Value::AttrSet(HashMap::new()));
+        assert_eq!(
+            eval_ok("{a = 1; b = 2;} // {a = 3; c = 1;"),
+            Value::AttrSet(HashMap::from([
+                ("a".to_owned(), Value::Int(3)),
+                ("b".to_owned(), Value::Int(2)),
+                ("c".to_owned(), Value::Int(1)),
+            ]))
+        );
+        assert!(evaluate("{} // 1").is_err());
+        assert!(evaluate("1 // {}").is_err());
     }
 }
