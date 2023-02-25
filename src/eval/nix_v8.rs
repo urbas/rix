@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Once};
 use rnix::{
     ast::{
         Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal,
-        Paren, Str, UnaryOp, UnaryOpKind,
+        Paren, Select, Str, UnaryOp, UnaryOpKind,
     },
     NodeOrToken, SyntaxKind, SyntaxToken,
 };
@@ -65,6 +65,7 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
         Expr::List(list) => emit_list(list, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
         Expr::Paren(paren) => emit_paren(paren, out_src),
+        Expr::Select(select) => emit_select_expr(select, out_src),
         Expr::Str(string) => emit_string_expr(string, out_src),
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
@@ -72,33 +73,35 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_attrset(attrset: &AttrSet, out_src: &mut String) -> Result<(), String> {
-    *out_src += "new Map()";
-
+    *out_src += "nixrt.attrset(";
     for attrpath_value in attrset.attrpath_values() {
-        *out_src += ".set(";
+        *out_src += "[";
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
         emit_attrpath(&attrpath, out_src)?;
         *out_src += ",";
         emit_expr(value, out_src)?;
-        *out_src += ")";
+        *out_src += "],";
     }
+    *out_src += ")";
     Ok(())
 }
 
 fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String> {
-    let Some(attr) = attrpath.attrs().next() else {
-        todo!()
-    };
-    match attr {
-        Attr::Ident(ident) => {
-            *out_src += "\"";
-            *out_src += ident.ident_token().expect("Not implemented").text();
-            *out_src += "\"";
+    *out_src += "nixrt.attrpath(";
+    for attr in attrpath.attrs() {
+        match attr {
+            Attr::Ident(ident) => {
+                *out_src += "\"";
+                *out_src += ident.ident_token().expect("Not implemented").text();
+                *out_src += "\"";
+            }
+            Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
+            _ => todo!(),
         }
-        Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
-        _ => todo!(),
+        *out_src += ",";
     }
+    *out_src += ")";
     Ok(())
 }
 
@@ -198,6 +201,20 @@ fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), String> {
         .expr()
         .expect("Unexpected parenthesis without a body.");
     emit_expr(&body, out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
+fn emit_select_expr(select: &Select, out_src: &mut String) -> Result<(), String> {
+    *out_src += "nixrt.select(";
+    emit_expr(&select.expr().expect("Unreachable"), out_src)?;
+    *out_src += ",";
+    emit_attrpath(&select.attrpath().expect("Unreachable"), out_src)?;
+    *out_src += ",";
+    match select.default_expr() {
+        Some(default_expr) => emit_expr(&default_expr, out_src)?,
+        None => *out_src += "undefined",
+    }
     *out_src += ")";
     Ok(())
 }
@@ -601,10 +618,17 @@ mod tests {
             eval_ok("{a = 1;}"),
             Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(1))]))
         );
+        assert_eq!(
+            eval_ok("{a.b = 1;}"),
+            Value::AttrSet(HashMap::from([(
+                "a".to_owned(),
+                Value::AttrSet(HashMap::from([("b".to_owned(), Value::Int(1))])),
+            )]))
+        );
     }
 
     #[test]
-    fn test_eval_update_attrset() {
+    fn test_eval_attrset_update() {
         assert_eq!(eval_ok("{} // {}"), Value::AttrSet(HashMap::new()));
         assert_eq!(
             eval_ok("{a = 1; b = 2;} // {a = 3; c = 1;"),
@@ -619,8 +643,15 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_has_op() {
+    fn test_eval_attrset_has() {
         assert_eq!(eval_ok("{a = 1;} ? a"), Value::Bool(true));
         assert_eq!(eval_ok("{a = 1;} ? \"a\""), Value::Bool(true));
+        assert_eq!(eval_ok("{a = {b = 1;};} ? a.c"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_attrset_select() {
+        assert_eq!(eval_ok("{a = 1;}.a"), Value::Int(1));
+        assert_eq!(eval_ok("{a = 1;}.b or 2"), Value::Int(2));
     }
 }
