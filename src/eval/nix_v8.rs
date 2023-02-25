@@ -2,8 +2,8 @@ use std::{collections::HashMap, sync::Once};
 
 use rnix::{
     ast::{
-        AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasEntry, Ident, List, Literal, Paren, Str,
-        UnaryOp, UnaryOpKind,
+        Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal,
+        Paren, Str, UnaryOp, UnaryOpKind,
     },
     NodeOrToken, SyntaxKind, SyntaxToken,
 };
@@ -61,10 +61,11 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
         Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
         Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
         Expr::Ident(ident) => emit_ident(ident, out_src),
+        Expr::HasAttr(has_attr) => emit_has_attr(has_attr, out_src),
         Expr::List(list) => emit_list(list, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
         Expr::Paren(paren) => emit_paren(paren, out_src),
-        Expr::Str(string) => eval_string_expr(string, out_src),
+        Expr::Str(string) => emit_string_expr(string, out_src),
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
@@ -89,12 +90,15 @@ fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String
     let Some(attr) = attrpath.attrs().next() else {
         todo!()
     };
-    let Ok(ident) = Ident::try_from(attr) else {
-        todo!()
-    };
-    *out_src += "\"";
-    *out_src += ident.ident_token().expect("Not implemented").text();
-    *out_src += "\"";
+    match attr {
+        Attr::Ident(ident) => {
+            *out_src += "\"";
+            *out_src += ident.ident_token().expect("Not implemented").text();
+            *out_src += "\"";
+        }
+        Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
+        _ => todo!(),
+    }
     Ok(())
 }
 
@@ -159,6 +163,15 @@ fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), Str
     Ok(())
 }
 
+fn emit_has_attr(has_attr: &HasAttr, out_src: &mut String) -> Result<(), String> {
+    *out_src += "nixrt.has(";
+    emit_expr(&has_attr.expr().expect("Unreachable"), out_src)?;
+    *out_src += ",";
+    emit_attrpath(&has_attr.attrpath().expect("Unreachable"), out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
 fn emit_list(list: &List, out_src: &mut String) -> Result<(), String> {
     *out_src += "[";
     for element in list.items() {
@@ -189,7 +202,7 @@ fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn eval_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
+fn emit_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
     let mut tokens = string.syntax().children_with_tokens();
     if let None = tokens.next() {
         todo!()
@@ -603,5 +616,11 @@ mod tests {
         );
         assert!(evaluate("{} // 1").is_err());
         assert!(evaluate("1 // {}").is_err());
+    }
+
+    #[test]
+    fn test_eval_has_op() {
+        assert_eq!(eval_ok("{a = 1;} ? a"), Value::Bool(true));
+        assert_eq!(eval_ok("{a = 1;} ? \"a\""), Value::Bool(true));
     }
 }
