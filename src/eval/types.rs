@@ -6,6 +6,7 @@ pub enum Value {
     Bool(bool),
     Float(f64),
     Int(i64),
+    Lambda,
     List(Vec<Value>),
     Str(String),
 }

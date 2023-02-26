@@ -2,8 +2,8 @@ use std::{collections::HashMap, sync::Once};
 
 use rnix::{
     ast::{
-        Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, List, Literal,
-        Paren, Select, Str, UnaryOp, UnaryOpKind,
+        Apply, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, Lambda,
+        List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
     },
     NodeOrToken, SyntaxKind, SyntaxToken,
 };
@@ -58,10 +58,12 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
 
 fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
+        Expr::Apply(apply) => emit_apply(apply, out_src),
         Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
         Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
-        Expr::Ident(ident) => emit_ident(ident, out_src),
         Expr::HasAttr(has_attr) => emit_has_attr(has_attr, out_src),
+        Expr::Ident(ident) => emit_ident(ident, out_src),
+        Expr::Lambda(lambda) => emit_lambda(lambda, out_src),
         Expr::List(list) => emit_list(list, out_src),
         Expr::Literal(literal) => emit_literal(literal, out_src),
         Expr::Paren(paren) => emit_paren(paren, out_src),
@@ -70,6 +72,19 @@ fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
         Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
+}
+
+fn emit_apply(apply: &Apply, out_src: &mut String) -> Result<(), String> {
+    emit_nixrt_bin_op(
+        &apply
+            .lambda()
+            .expect("Unexpected lambda application without the lambda."),
+        &apply
+            .argument()
+            .expect("Unexpected lambda application without arguments."),
+        "nixrt.apply",
+        out_src,
+    )
 }
 
 fn emit_attrset(attrset: &AttrSet, out_src: &mut String) -> Result<(), String> {
@@ -171,6 +186,19 @@ fn emit_has_attr(has_attr: &HasAttr, out_src: &mut String) -> Result<(), String>
     emit_expr(&has_attr.expr().expect("Unreachable"), out_src)?;
     *out_src += ",";
     emit_attrpath(&has_attr.attrpath().expect("Unreachable"), out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
+fn emit_lambda(lambda: &Lambda, out_src: &mut String) -> Result<(), String> {
+    let _param = lambda
+        .param()
+        .expect("Unexpected lambda without parameters.");
+    let body = lambda
+        .body()
+        .expect("Unexpected lambda without parameters.");
+    *out_src += "new nixrt.Lambda(";
+    emit_expr(&body, out_src)?;
     *out_src += ")";
     Ok(())
 }
@@ -313,7 +341,7 @@ fn js_value_to_nix<'s>(
             .unwrap();
         return Ok(Value::Float(number));
     }
-    if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value) {
+    if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value)? {
         return Ok(value);
     }
     if let Some(value) = js_value_as_nix_string(scope, js_value) {
@@ -325,6 +353,9 @@ fn js_value_to_nix<'s>(
     if let Some(value) = js_value_as_attrset(scope, nixrt, js_value) {
         return value;
     }
+    if let Some(value) = js_object_as_nix_value(scope, nixrt, js_value)? {
+        return Ok(value);
+    }
     todo!(
         "js_value_to_nix: {:?}",
         js_value.to_rust_string_lossy(scope)
@@ -335,29 +366,48 @@ fn js_value_as_nix_int<'s>(
     scope: &mut v8::HandleScope<'s>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Option<Value> {
-    if js_value.is_object() {
-        let nix_int_class_name = v8::String::new(scope, "NixInt").unwrap();
-        let nixrt_nix_int = nixrt
-            .to_object(scope)
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "NixInt")? {
+        let js_object = js_value.to_object(scope).expect("Unreachable");
+        let nix_int_value_attr = v8::String::new(scope, "int64").unwrap();
+        let big_int_value: v8::Local<v8::BigInt> = js_object
+            .get(scope, nix_int_value_attr.into())
             .unwrap()
-            .get(scope, nix_int_class_name.into())
-            .unwrap()
-            .to_object(scope)
-            .unwrap();
-        let js_object = js_value.to_object(scope).unwrap();
-        let is_nix_int = js_object.instance_of(scope, nixrt_nix_int).unwrap();
-        if is_nix_int {
-            let nix_int_value_attr = v8::String::new(scope, "int64").unwrap();
-            let big_int_value: v8::Local<v8::BigInt> = js_object
-                .get(scope, nix_int_value_attr.into())
-                .unwrap()
-                .try_into()
-                .expect("Expected an int64 value");
-            return Some(Value::Int(big_int_value.i64_value().0));
-        }
+            .try_into()
+            .expect("Expected an int64 value");
+        return Ok(Some(Value::Int(big_int_value.i64_value().0)));
     }
-    None
+    Ok(None)
+}
+
+fn get_nixrt_type<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    type_name: &str,
+) -> Result<v8::Local<'s, v8::Object>, String> {
+    let nix_int_class_name = v8::String::new(scope, type_name).unwrap();
+    nixrt
+        .to_object(scope)
+        .unwrap()
+        .get(scope, nix_int_class_name.into())
+        .unwrap()
+        .to_object(scope)
+        .ok_or_else(|| format!("Could not find the type {type_name}."))
+}
+
+fn is_nixrt_type<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+    type_name: &str,
+) -> Result<bool, String> {
+    let nixrt_type = get_nixrt_type(scope, nixrt, type_name)?;
+    js_value.instance_of(scope, nixrt_type).ok_or_else(|| {
+        format!(
+            "Failed to check whether value '{}' is 'nixrt.{type_name}'.",
+            js_value.to_rust_string_lossy(scope)
+        )
+    })
 }
 
 fn js_value_as_nix_string<'s>(
@@ -395,6 +445,17 @@ fn js_value_as_nix_array<'s>(
         }
         Err(_) => None,
     }
+}
+
+fn js_object_as_nix_value<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
+        return Ok(Some(Value::Lambda));
+    }
+    Ok(None)
 }
 
 fn js_value_as_attrset<'s>(
@@ -653,5 +714,15 @@ mod tests {
     fn test_eval_attrset_select() {
         assert_eq!(eval_ok("{a = 1;}.a"), Value::Int(1));
         assert_eq!(eval_ok("{a = 1;}.b or 2"), Value::Int(2));
+    }
+
+    #[test]
+    fn test_eval_lambda() {
+        assert_eq!(eval_ok("a: 1"), Value::Lambda);
+    }
+
+    #[test]
+    fn test_eval_lambda_application() {
+        assert_eq!(eval_ok("(a: 1) 2"), Value::Int(1));
     }
 }
