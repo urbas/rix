@@ -15,6 +15,10 @@ automatically set up. You can verify this with:
 cargo --version
 ```
 
+Rix uses `nixrt` (a JavaScript library), which it loads from the location
+specified in the `RIX_NIXRT_JS_MODULE` environment variable. `direnv` makes
+sure that this environment variable is set up correctly.
+
 ## Editor
 
 You must follow the "Shell" instructions above to make sure the `.direnv`
@@ -23,6 +27,10 @@ into your editor's `PATH` or use https://rustup.rs/.
 
 Your editor should pick up the Rust toolchain as specified in
 `rust-toolchain.toml`.
+
+### VSCode
+
+Install the [direnv vscode extension](https://github.com/direnv/direnv-vscode).
 
 # Building & Testing
 

@@ -1,8 +1,5 @@
 {
   "editor.formatOnSave": true,
-  "rust-analyzer.cargo.extraEnv": {
-    "RIX_NIXRT_JS_MODULE": "${workspaceDir}/.direnv/devEnv/lib/node_modules/nixrt/src/lib.js",
-  },
   "files.watcherExclude": {
     ".direnv/**": true
   },
