@@ -2,10 +2,10 @@ use std::{collections::HashMap, sync::Once};
 
 use rnix::{
     ast::{
-        Apply, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, Lambda,
-        List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
+        Apply, AstToken, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident,
+        Lambda, List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
     },
-    NodeOrToken, SyntaxKind, SyntaxToken,
+    SyntaxKind, SyntaxToken,
 };
 use rowan::ast::AstNode;
 
@@ -248,16 +248,23 @@ fn emit_select_expr(select: &Select, out_src: &mut String) -> Result<(), String>
 }
 
 fn emit_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
-    let mut tokens = string.syntax().children_with_tokens();
-    if let None = tokens.next() {
-        todo!()
-    };
-    let Some(NodeOrToken:: Token(string_content)) = tokens.next() else {
-        todo!()
-    };
-    *out_src += "\"";
-    *out_src += string_content.text();
-    *out_src += "\"";
+    *out_src += "`";
+    for string_part in string.parts() {
+        match string_part {
+            rnix::ast::InterpolPart::Literal(literal) => *out_src += &literal.syntax().text(),
+            rnix::ast::InterpolPart::Interpolation(interpolation_body) => {
+                *out_src += "${nixrt.interpolate(";
+                emit_expr(
+                    &interpolation_body
+                        .expr()
+                        .expect("String interpolation body missing."),
+                    out_src,
+                )?;
+                *out_src += ")}";
+            }
+        }
+    }
+    *out_src += "`";
     Ok(())
 }
 
@@ -604,6 +611,12 @@ mod tests {
     #[test]
     fn test_eval_string_multiplication_err() {
         assert!(evaluate(r#""b" * "a""#).is_err());
+    }
+
+    #[test]
+    fn test_eval_string_interpolation() {
+        assert_eq!(eval_ok(r#""${"A"}""#), Value::Str("A".to_owned()));
+        assert!(evaluate(r#""${1}""#).is_err());
     }
 
     #[test]
