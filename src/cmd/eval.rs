@@ -38,6 +38,7 @@ fn print_value(value: &Value) {
         Value::Bool(boolean) => print!("{boolean}"),
         Value::Float(float) => print!("{float}"),
         Value::Int(int) => print!("{int}"),
+        Value::Lambda => print!("<LAMBDA>"),
         Value::List(vector) => print_list(vector),
         Value::Str(string) => print!("\"{string}\""),
     }
