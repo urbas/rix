@@ -2,8 +2,8 @@ use std::{collections::HashMap, sync::Once};
 
 use rnix::{
     ast::{
-        Apply, AstToken, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident,
-        Lambda, List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
+        Apply, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, Lambda,
+        List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
     },
     SyntaxKind, SyntaxToken,
 };
@@ -249,9 +249,11 @@ fn emit_select_expr(select: &Select, out_src: &mut String) -> Result<(), String>
 
 fn emit_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
     *out_src += "`";
-    for string_part in string.parts() {
+    for string_part in string.normalized_parts() {
         match string_part {
-            rnix::ast::InterpolPart::Literal(literal) => *out_src += &literal.syntax().text(),
+            rnix::ast::InterpolPart::Literal(literal) => {
+                js_string_escape_into(&literal, out_src);
+            }
             rnix::ast::InterpolPart::Interpolation(interpolation_body) => {
                 *out_src += "${nixrt.interpolate(";
                 emit_expr(
@@ -266,6 +268,18 @@ fn emit_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
     }
     *out_src += "`";
     Ok(())
+}
+
+fn js_string_escape_into(string: &str, out_string: &mut String) {
+    for character in string.chars() {
+        match character {
+            '`' => out_string.push_str(r#"\`"#),
+            '$' => out_string.push_str(r#"\$"#),
+            '\\' => out_string.push_str(r#"\\"#),
+            '\r' => out_string.push_str(r#"\r"#),
+            character => out_string.push(character),
+        }
+    }
 }
 
 fn emit_unary_op(unary_op: &UnaryOp, out_src: &mut String) -> Result<(), String> {
@@ -601,6 +615,31 @@ mod tests {
     #[test]
     fn test_eval_string_literal() {
         assert_eq!(eval_ok(r#""Hello!""#), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_string_escape_codes() {
+        assert_eq!(
+            eval_ok(r#""\"\$\n\r\t\\`""#),
+            Value::Str("\"$\n\r\t\\`".to_owned())
+        );
+        assert_eq!(eval_ok("\"a \n b\""), Value::Str("a \n b".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_indented_string() {
+        assert_eq!(
+            eval_ok("''\n  Hello\n  World!''"),
+            Value::Str("Hello\nWorld!".to_owned())
+        );
+        assert_eq!(
+            eval_ok("''\n  a\n b\n   c''"),
+            Value::Str(" a\nb\n  c".to_owned())
+        );
+        assert_eq!(
+            eval_ok("''''$'''$${}''\\n''\\t''\\r''\\\\''"),
+            Value::Str("$''$${}\n\t\r\\".to_owned())
+        );
     }
 
     #[test]
