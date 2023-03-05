@@ -218,7 +218,12 @@ fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), String> {
     match token.kind() {
         SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({}n)", token.text()),
         SyntaxKind::TOKEN_FLOAT => *out_src += token.text(),
-        _ => todo!("emit_literal: {:?}", literal),
+        SyntaxKind::TOKEN_URI => {
+            out_src.push('`');
+            js_string_escape_into(token.text(), out_src);
+            out_src.push('`');
+        }
+        _ => todo!("emit_literal: {:?} token kind: {:?}", literal, token.kind()),
     }
     Ok(())
 }
@@ -615,6 +620,14 @@ mod tests {
     #[test]
     fn test_eval_string_literal() {
         assert_eq!(eval_ok(r#""Hello!""#), Value::Str("Hello!".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_string_uri() {
+        assert_eq!(
+            eval_ok("http://foo.bat/moo"),
+            Value::Str("http://foo.bat/moo".to_owned())
+        );
     }
 
     #[test]
