@@ -112,7 +112,9 @@ fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String
                 *out_src += "\"";
             }
             Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
-            _ => todo!(),
+            Attr::Dynamic(expr) => {
+                emit_expr(&expr.expr().expect("Expected an expression."), out_src)?
+            }
         }
         *out_src += ",";
     }
@@ -508,12 +510,12 @@ fn js_map_as_attrset<'s>(
         let value_idx = key_idx + 1;
         let key: v8::Local<v8::String> = js_map_array
             .get_index(scope, key_idx)
-            .expect("Not Implemented")
+            .expect("Unexpected index out-of-bounds.")
             .try_into()
-            .expect("Not Implemented");
+            .expect("Attr names must be strings.");
         let value = js_map_array
             .get_index(scope, value_idx)
-            .expect("Not Implemented");
+            .expect("Unexpected index out-of-bounds.");
         map.insert(
             key.to_rust_string_lossy(scope),
             js_value_to_nix(scope, nixrt, &value)?,
@@ -751,6 +753,31 @@ mod tests {
                 Value::AttrSet(HashMap::from([("b".to_owned(), Value::Int(1))])),
             )]))
         );
+    }
+
+    #[test]
+    fn test_eval_attrset_interpolated_attrs() {
+        assert_eq!(eval_ok(r#"{${"a"} = 1;}.a"#), Value::Int(1));
+    }
+
+    #[test]
+    fn test_eval_attrset_null_attr() {
+        assert_eq!(
+            eval_ok(r#"{ ${null} = true; }"#),
+            Value::AttrSet(HashMap::new()),
+        );
+        assert_eq!(
+            eval_ok(r#"{ a.${null} = true; }"#),
+            Value::AttrSet(HashMap::from([(
+                "a".to_owned(),
+                Value::AttrSet(HashMap::new()),
+            )])),
+        );
+    }
+
+    #[test]
+    fn test_eval_attrset_non_string_attr() {
+        assert!(evaluate(r#"{ ${1} = true; }"#).is_err());
     }
 
     #[test]
