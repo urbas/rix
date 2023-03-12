@@ -8,6 +8,7 @@ pub enum Value {
     Int(i64),
     Lambda,
     List(Vec<Value>),
+    Path(String),
     Str(String),
 }
 

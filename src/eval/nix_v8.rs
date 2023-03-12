@@ -1,12 +1,6 @@
 use std::{collections::HashMap, sync::Once};
 
-use rnix::{
-    ast::{
-        Apply, Attr, AttrSet, Attrpath, BinOp, BinOpKind, Expr, HasAttr, HasEntry, Ident, Lambda,
-        List, Literal, Paren, Select, Str, UnaryOp, UnaryOpKind,
-    },
-    SyntaxKind, SyntaxToken,
-};
+use rnix::{ast, ast::HasEntry, SyntaxKind, SyntaxToken};
 use rowan::ast::AstNode;
 
 use crate::eval::types::EvalResult;
@@ -56,25 +50,26 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     Ok(out_src)
 }
 
-fn emit_expr(nix_ast: &Expr, out_src: &mut String) -> Result<(), String> {
+fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
-        Expr::Apply(apply) => emit_apply(apply, out_src),
-        Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
-        Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
-        Expr::HasAttr(has_attr) => emit_has_attr(has_attr, out_src),
-        Expr::Ident(ident) => emit_ident(ident, out_src),
-        Expr::Lambda(lambda) => emit_lambda(lambda, out_src),
-        Expr::List(list) => emit_list(list, out_src),
-        Expr::Literal(literal) => emit_literal(literal, out_src),
-        Expr::Paren(paren) => emit_paren(paren, out_src),
-        Expr::Select(select) => emit_select_expr(select, out_src),
-        Expr::Str(string) => emit_string_expr(string, out_src),
-        Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
+        ast::Expr::Apply(apply) => emit_apply(apply, out_src),
+        ast::Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
+        ast::Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
+        ast::Expr::HasAttr(has_attr) => emit_has_attr(has_attr, out_src),
+        ast::Expr::Ident(ident) => emit_ident(ident, out_src),
+        ast::Expr::Lambda(lambda) => emit_lambda(lambda, out_src),
+        ast::Expr::List(list) => emit_list(list, out_src),
+        ast::Expr::Literal(literal) => emit_literal(literal, out_src),
+        ast::Expr::Paren(paren) => emit_paren(paren, out_src),
+        ast::Expr::Path(path) => emit_path(path, out_src),
+        ast::Expr::Select(select) => emit_select_expr(select, out_src),
+        ast::Expr::Str(string) => emit_string_expr(string, out_src),
+        ast::Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
 }
 
-fn emit_apply(apply: &Apply, out_src: &mut String) -> Result<(), String> {
+fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
     emit_nixrt_bin_op(
         &apply
             .lambda()
@@ -87,7 +82,7 @@ fn emit_apply(apply: &Apply, out_src: &mut String) -> Result<(), String> {
     )
 }
 
-fn emit_attrset(attrset: &AttrSet, out_src: &mut String) -> Result<(), String> {
+fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.attrset(";
     for attrpath_value in attrset.attrpath_values() {
         *out_src += "[";
@@ -102,17 +97,17 @@ fn emit_attrset(attrset: &AttrSet, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String> {
+fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.attrpath(";
     for attr in attrpath.attrs() {
         match attr {
-            Attr::Ident(ident) => {
+            ast::Attr::Ident(ident) => {
                 *out_src += "\"";
                 *out_src += ident.ident_token().expect("Not implemented").text();
                 *out_src += "\"";
             }
-            Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
-            Attr::Dynamic(expr) => {
+            ast::Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
+            ast::Attr::Dynamic(expr) => {
                 emit_expr(&expr.expr().expect("Expected an expression."), out_src)?
             }
         }
@@ -122,42 +117,42 @@ fn emit_attrpath(attrpath: &Attrpath, out_src: &mut String) -> Result<(), String
     Ok(())
 }
 
-fn emit_bin_op(bin_op: &BinOp, out_src: &mut String) -> Result<(), String> {
+fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> {
     let operator = bin_op.operator().expect("Not implemented");
     let lhs = &bin_op.lhs().expect("Not implemented");
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
         // List
-        BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
+        ast::BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
 
         // Arithmetic
-        BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "nixrt.add", out_src)?,
-        BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
-        BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
-        BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
+        ast::BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "nixrt.add", out_src)?,
+        ast::BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
+        ast::BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
+        ast::BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
 
         // Boolean
-        BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
-        BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
-        BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
+        ast::BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
+        ast::BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
+        ast::BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
 
         // Comparison
-        BinOpKind::Equal => emit_nixrt_bin_op(lhs, rhs, "nixrt.eq", out_src)?,
-        BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "nixrt.less", out_src)?,
-        BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.less_eq", out_src)?,
-        BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "nixrt.more", out_src)?,
-        BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.more_eq", out_src)?,
-        BinOpKind::NotEqual => emit_nixrt_bin_op(lhs, rhs, "nixrt.neq", out_src)?,
+        ast::BinOpKind::Equal => emit_nixrt_bin_op(lhs, rhs, "nixrt.eq", out_src)?,
+        ast::BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "nixrt.less", out_src)?,
+        ast::BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.less_eq", out_src)?,
+        ast::BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "nixrt.more", out_src)?,
+        ast::BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.more_eq", out_src)?,
+        ast::BinOpKind::NotEqual => emit_nixrt_bin_op(lhs, rhs, "nixrt.neq", out_src)?,
 
         // List
-        BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
+        ast::BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
     }
     Ok(())
 }
 
 fn emit_nixrt_bin_op(
-    lhs: &Expr,
-    rhs: &Expr,
+    lhs: &ast::Expr,
+    rhs: &ast::Expr,
     nixrt_function: &str,
     out_src: &mut String,
 ) -> Result<(), String> {
@@ -170,7 +165,7 @@ fn emit_nixrt_bin_op(
     Ok(())
 }
 
-fn emit_ident(ident: &Ident, out_src: &mut String) -> Result<(), String> {
+fn emit_ident(ident: &ast::Ident, out_src: &mut String) -> Result<(), String> {
     let token = ident.ident_token().expect("Not implemented");
     match token.kind() {
         SyntaxKind::TOKEN_IDENT => emit_ident_token(&token, out_src),
@@ -183,7 +178,7 @@ fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), Str
     Ok(())
 }
 
-fn emit_has_attr(has_attr: &HasAttr, out_src: &mut String) -> Result<(), String> {
+fn emit_has_attr(has_attr: &ast::HasAttr, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.has(";
     emit_expr(&has_attr.expr().expect("Unreachable"), out_src)?;
     *out_src += ",";
@@ -192,7 +187,7 @@ fn emit_has_attr(has_attr: &HasAttr, out_src: &mut String) -> Result<(), String>
     Ok(())
 }
 
-fn emit_lambda(lambda: &Lambda, out_src: &mut String) -> Result<(), String> {
+fn emit_lambda(lambda: &ast::Lambda, out_src: &mut String) -> Result<(), String> {
     let _param = lambda
         .param()
         .expect("Unexpected lambda without parameters.");
@@ -205,7 +200,7 @@ fn emit_lambda(lambda: &Lambda, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_list(list: &List, out_src: &mut String) -> Result<(), String> {
+fn emit_list(list: &ast::List, out_src: &mut String) -> Result<(), String> {
     *out_src += "[";
     for element in list.items() {
         emit_expr(&element, out_src)?;
@@ -215,7 +210,7 @@ fn emit_list(list: &List, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), String> {
+fn emit_literal(literal: &ast::Literal, out_src: &mut String) -> Result<(), String> {
     let token = literal.syntax().first_token().expect("Not implemented");
     match token.kind() {
         SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({}n)", token.text()),
@@ -230,7 +225,7 @@ fn emit_literal(literal: &Literal, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), String> {
+fn emit_paren(paren: &ast::Paren, out_src: &mut String) -> Result<(), String> {
     *out_src += "(";
     let body = paren
         .expr()
@@ -240,7 +235,14 @@ fn emit_paren(paren: &Paren, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_select_expr(select: &Select, out_src: &mut String) -> Result<(), String> {
+fn emit_path(path: &ast::Path, out_src: &mut String) -> Result<(), String> {
+    *out_src += "new nixrt.Path(`";
+    js_string_escape_into(&path.to_string(), out_src);
+    *out_src += "`)";
+    Ok(())
+}
+
+fn emit_select_expr(select: &ast::Select, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.select(";
     emit_expr(&select.expr().expect("Unreachable"), out_src)?;
     *out_src += ",";
@@ -254,14 +256,14 @@ fn emit_select_expr(select: &Select, out_src: &mut String) -> Result<(), String>
     Ok(())
 }
 
-fn emit_string_expr(string: &Str, out_src: &mut String) -> Result<(), String> {
+fn emit_string_expr(string: &ast::Str, out_src: &mut String) -> Result<(), String> {
     *out_src += "`";
     for string_part in string.normalized_parts() {
         match string_part {
-            rnix::ast::InterpolPart::Literal(literal) => {
+            ast::InterpolPart::Literal(literal) => {
                 js_string_escape_into(&literal, out_src);
             }
-            rnix::ast::InterpolPart::Interpolation(interpolation_body) => {
+            ast::InterpolPart::Interpolation(interpolation_body) => {
                 *out_src += "${nixrt.interpolate(";
                 emit_expr(
                     &interpolation_body
@@ -289,25 +291,25 @@ fn js_string_escape_into(string: &str, out_string: &mut String) {
     }
 }
 
-fn emit_unary_op(unary_op: &UnaryOp, out_src: &mut String) -> Result<(), String> {
+fn emit_unary_op(unary_op: &ast::UnaryOp, out_src: &mut String) -> Result<(), String> {
     let operator = unary_op.operator().expect("Not implemented");
     let operand = unary_op.expr().expect("Not implemented");
     emit_unary_op_kind(operator, &operand, out_src)
 }
 
 fn emit_unary_op_kind(
-    operator: UnaryOpKind,
-    operand: &Expr,
+    operator: ast::UnaryOpKind,
+    operand: &ast::Expr,
     out_src: &mut String,
 ) -> Result<(), String> {
     match operator {
-        UnaryOpKind::Invert => emit_nixrt_unary_op(operand, "nixrt.invert", out_src),
-        UnaryOpKind::Negate => emit_nixrt_unary_op(operand, "nixrt.neg", out_src),
+        ast::UnaryOpKind::Invert => emit_nixrt_unary_op(operand, "nixrt.invert", out_src),
+        ast::UnaryOpKind::Negate => emit_nixrt_unary_op(operand, "nixrt.neg", out_src),
     }
 }
 
 fn emit_nixrt_unary_op(
-    operand: &Expr,
+    operand: &ast::Expr,
     nixrt_function: &str,
     out_src: &mut String,
 ) -> Result<(), String> {
@@ -483,7 +485,33 @@ fn js_object_as_nix_value<'s>(
     if is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
         return Ok(Some(Value::Lambda));
     }
-    Ok(None)
+    js_value_as_nix_path(scope, nixrt, js_value)
+}
+
+fn js_value_as_nix_path<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if !is_nixrt_type(scope, nixrt, js_value, "Path")? {
+        return Ok(None);
+    }
+    let Some(path) = try_get_js_object_key(scope, js_value, "path")? else {
+        return Ok(None);
+    };
+    Ok(Some(Value::Path(path.to_rust_string_lossy(scope))))
+}
+
+fn try_get_js_object_key<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    js_value: &v8::Local<v8::Value>,
+    key: &str,
+) -> Result<Option<v8::Local<'s, v8::Value>>, String> {
+    let js_object = js_value
+        .to_object(scope)
+        .ok_or_else(|| "Not an object.".to_owned())?;
+    let key_js_str = v8::String::new(scope, key).unwrap();
+    Ok(js_object.get(scope, key_js_str.into()))
 }
 
 fn js_value_as_attrset<'s>(
@@ -816,5 +844,10 @@ mod tests {
     #[test]
     fn test_eval_lambda_application() {
         assert_eq!(eval_ok("(a: 1) 2"), Value::Int(1));
+    }
+
+    #[test]
+    fn test_eval_path() {
+        assert_eq!(eval_ok("/a"), Value::Path("/a".to_owned()));
     }
 }
