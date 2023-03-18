@@ -1,8 +1,11 @@
+use std::env::current_dir;
+use std::path::Path;
 use std::{collections::HashMap, sync::Once};
 
 use rnix::{ast, ast::HasEntry, SyntaxKind, SyntaxToken};
 use rowan::ast::AstNode;
 
+use crate::eval::nix_v8_builtins as builtins;
 use crate::eval::types::EvalResult;
 use crate::eval::types::Value;
 
@@ -44,7 +47,7 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
     let mut out_src = format!("import nixrt from '{nixrt_js_module}';\n");
     out_src += "export const __nixrt = nixrt;\n";
-    out_src += "export const __nixValue = () => {return ";
+    out_src += "export const __nixValue = (evalCtx) => {return ";
     emit_expr(&root_expr, &mut out_src)?;
     out_src += ";};\n";
     Ok(out_src)
@@ -236,7 +239,7 @@ fn emit_paren(paren: &ast::Paren, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_path(path: &ast::Path, out_src: &mut String) -> Result<(), String> {
-    *out_src += "new nixrt.Path(`";
+    *out_src += "nixrt.toPath(evalCtx,`";
     js_string_escape_into(&path.to_string(), out_src);
     *out_src += "`)";
     Ok(())
@@ -332,9 +335,16 @@ fn nix_value_from_module(
     let nix_value: v8::Local<v8::Function> =
         nix_value.try_into().expect("Nix value must be a function.");
 
+    let eval_ctx = create_eval_ctx(
+        scope,
+        &current_dir().map_err(|err| {
+            format!("Failed to determine the current working directory. Error: {err}")
+        })?,
+    )?;
+
     let scope = &mut v8::TryCatch::new(scope);
     let recv = v8::undefined(scope).into();
-    let Some(nix_value) = nix_value.call(scope, recv, &[]) else {
+    let Some(nix_value) = nix_value.call(scope, recv, &[eval_ctx.into()]) else {
         // TODO: The stack trace needs to be source-mapped. Unfortunately, this doesn't
         // seem to be supported yet: https://github.com/denoland/deno/issues/4499
         let err_msg = scope
@@ -353,6 +363,34 @@ fn nix_value_from_module(
         .try_into()
         .unwrap();
     js_value_to_nix(scope, &nixrt, &nix_value)
+}
+
+fn create_eval_ctx<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    script_path: &Path,
+) -> Result<v8::Local<'s, v8::Object>, String> {
+    let eval_ctx = v8::Object::new(scope);
+
+    let builtins = builtins::create_builtins_obj(scope);
+    let builtins_name = v8::String::new(scope, "builtins").expect("Unexpected internal error.");
+    eval_ctx.set(scope, builtins_name.into(), builtins.into());
+
+    let real_path = script_path
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve the script path. Error: {err}."))?;
+    let script_dir = real_path
+        .parent()
+        .ok_or_else(|| format!("Failed to determine the directory of path {real_path:?}."))?;
+    let script_dir_str = real_path
+        .to_str()
+        .ok_or_else(|| format!("Failed to converft the path {script_dir:?} to a string."))?;
+    let js_script_dir_name =
+        v8::String::new(scope, "scriptDir").expect("Unexpected internal error.");
+    let js_script_dir_path =
+        v8::String::new(scope, script_dir_str).expect("Unexpected internal error.");
+    eval_ctx.set(scope, js_script_dir_name.into(), js_script_dir_path.into());
+
+    Ok(eval_ctx)
 }
 
 fn js_value_to_nix<'s>(
@@ -398,13 +436,12 @@ fn js_value_as_nix_int<'s>(
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, String> {
     if is_nixrt_type(scope, nixrt, js_value, "NixInt")? {
-        let js_object = js_value.to_object(scope).expect("Unreachable");
-        let nix_int_value_attr = v8::String::new(scope, "int64").unwrap();
-        let big_int_value: v8::Local<v8::BigInt> = js_object
-            .get(scope, nix_int_value_attr.into())
-            .unwrap()
-            .try_into()
-            .expect("Expected an int64 value");
+        let Some(int64_js_value) = try_get_js_object_key(scope, js_value, "int64")? else {
+            return Ok(None);
+        };
+        let big_int_value: v8::Local<v8::BigInt> = int64_js_value.try_into().map_err(|err| {
+            format!("Expected an int64 value. Internal conversion error: {err:?}")
+        })?;
         return Ok(Some(Value::Int(big_int_value.i64_value().0)));
     }
     Ok(None)
@@ -849,5 +886,13 @@ mod tests {
     #[test]
     fn test_eval_path() {
         assert_eq!(eval_ok("/a"), Value::Path("/a".to_owned()));
+        assert_eq!(
+            eval_ok("./a"),
+            Value::Path(format!("{}/a", std::env::current_dir().unwrap().display()))
+        );
+        assert_eq!(
+            eval_ok("./a/../b"),
+            Value::Path(format!("{}/b", std::env::current_dir().unwrap().display()))
+        );
     }
 }

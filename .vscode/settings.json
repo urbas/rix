@@ -6,4 +6,7 @@
   "search.exclude": {
     ".direnv/**": true
   },
+  "cSpell.words": [
+    "rnix"
+  ],
 }
