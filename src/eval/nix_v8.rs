@@ -59,6 +59,7 @@ fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
         ast::Expr::BinOp(bin_op) => emit_bin_op(bin_op, out_src),
         ast::Expr::HasAttr(has_attr) => emit_has_attr(has_attr, out_src),
         ast::Expr::Ident(ident) => emit_ident(ident, out_src),
+        ast::Expr::IfElse(if_else) => emit_if_else(if_else, out_src),
         ast::Expr::Lambda(lambda) => emit_lambda(lambda, out_src),
         ast::Expr::List(list) => emit_list(list, out_src),
         ast::Expr::Literal(literal) => emit_literal(literal, out_src),
@@ -194,6 +195,26 @@ fn emit_has_attr(has_attr: &ast::HasAttr, out_src: &mut String) -> Result<(), St
     emit_expr(&has_attr.expr().expect("Unreachable"), out_src)?;
     *out_src += ",";
     emit_attrpath(&has_attr.attrpath().expect("Unreachable"), out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
+fn emit_if_else(lambda: &ast::IfElse, out_src: &mut String) -> Result<(), String> {
+    let condition = lambda
+        .condition()
+        .expect("Unexpected 'if-then-else' expression without a condition.");
+    let body = lambda
+        .body()
+        .expect("Unexpected 'if-then-else' expression without a body.");
+    let else_body = lambda
+        .else_body()
+        .expect("Unexpected 'if-then-else' expression without an 'else' body.");
+    *out_src += "nixrt.asBoolean(";
+    emit_expr(&condition, out_src)?;
+    *out_src += ") ? (";
+    emit_expr(&body, out_src)?;
+    *out_src += ") : (";
+    emit_expr(&else_body, out_src)?;
     *out_src += ")";
     Ok(())
 }
@@ -905,5 +926,16 @@ mod tests {
     fn test_eval_path_concat() {
         assert_eq!(eval_ok(r#"/. + "a""#), Value::Path("/a".to_owned()));
         assert_eq!(eval_ok(r#"/. + "./a/../b""#), Value::Path("/b".to_owned()));
+    }
+
+    #[test]
+    fn test_eval_if_then_else() {
+        assert_eq!(eval_ok("if true then 1 else 0"), Value::Int(1));
+        assert_eq!(eval_ok("if false then 1 else 0"), Value::Int(0));
+    }
+
+    #[test]
+    fn test_eval_if_then_else_invalid_type() {
+        assert!(evaluate("if 0 then 1 else 0").is_err());
     }
 }

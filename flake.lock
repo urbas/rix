@@ -35,11 +35,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1679224809,
-        "narHash": "sha256-P3hGG9m3WEhd17EzJ0tujOgId1rHE1AmgjyR1+uF9qE=",
+        "lastModified": 1679238988,
+        "narHash": "sha256-as/MnLWQ0+HmtifPnRk42KRI/kdQfvlaky3/djTex0M=",
         "owner": "urbas",
         "repo": "nixrt",
-        "rev": "9bc9a39fcefa02215b37bcb6db961239f9c7d3fb",
+        "rev": "d4a05f8b5905892c2545ed96cfc2b1a9328de0ac",
         "type": "github"
       },
       "original": {
