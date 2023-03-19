@@ -5,7 +5,6 @@ use std::{collections::HashMap, sync::Once};
 use rnix::{ast, ast::HasEntry, SyntaxKind, SyntaxToken};
 use rowan::ast::AstNode;
 
-use crate::eval::nix_v8_builtins as builtins;
 use crate::eval::types::EvalResult;
 use crate::eval::types::Value;
 
@@ -125,14 +124,14 @@ fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> 
     let lhs = &bin_op.lhs().expect("Not implemented");
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
-        // List
-        ast::BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
-
         // Arithmetic
-        ast::BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "nixrt.add", out_src)?,
+        ast::BinOpKind::Add => emit_add_bin_op(lhs, rhs, out_src)?,
         ast::BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
         ast::BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
         ast::BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
+
+        // Attrset
+        ast::BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
 
         // Boolean
         ast::BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
@@ -150,6 +149,15 @@ fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> 
         // List
         ast::BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
     }
+    Ok(())
+}
+
+fn emit_add_bin_op(lhs: &ast::Expr, rhs: &ast::Expr, out_src: &mut String) -> Result<(), String> {
+    *out_src += "nixrt.add(evalCtx,";
+    emit_expr(lhs, out_src)?;
+    *out_src += ",";
+    emit_expr(rhs, out_src)?;
+    *out_src += ")";
     Ok(())
 }
 
@@ -370,10 +378,6 @@ fn create_eval_ctx<'s>(
     script_path: &Path,
 ) -> Result<v8::Local<'s, v8::Object>, String> {
     let eval_ctx = v8::Object::new(scope);
-
-    let builtins = builtins::create_builtins_obj(scope);
-    let builtins_name = v8::String::new(scope, "builtins").expect("Unexpected internal error.");
-    eval_ctx.set(scope, builtins_name.into(), builtins.into());
 
     let real_path = script_path
         .canonicalize()
@@ -885,6 +889,7 @@ mod tests {
 
     #[test]
     fn test_eval_path() {
+        assert_eq!(eval_ok("/."), Value::Path("/".to_owned()));
         assert_eq!(eval_ok("/a"), Value::Path("/a".to_owned()));
         assert_eq!(
             eval_ok("./a"),
@@ -894,5 +899,11 @@ mod tests {
             eval_ok("./a/../b"),
             Value::Path(format!("{}/b", std::env::current_dir().unwrap().display()))
         );
+    }
+
+    #[test]
+    fn test_eval_path_concat() {
+        assert_eq!(eval_ok(r#"/. + "a""#), Value::Path("/a".to_owned()));
+        assert_eq!(eval_ok(r#"/. + "./a/../b""#), Value::Path("/b".to_owned()));
     }
 }
