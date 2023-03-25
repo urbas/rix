@@ -3,7 +3,7 @@ use crate::eval::nix_v8;
 use clap::{Arg, ArgAction, ArgMatches};
 
 pub fn cmd() -> RixSubCommand {
-    return RixSubCommand {
+    RixSubCommand {
         name: "transpile",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
@@ -17,7 +17,7 @@ pub fn cmd() -> RixSubCommand {
                         .help("The 'EXPRESSION' argument will be treated as an expression rather than a file."),
                 )
         },
-    };
+    }
 }
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
@@ -26,7 +26,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
         .ok_or("You must provide a single expression to transpile.")?;
     let is_expression = parsed_args.get_one::<bool>("expr").unwrap();
     if *is_expression {
-        let js_source = nix_v8::emit_module(&expression)
+        let js_source = nix_v8::emit_module(expression)
             .map_err(|_err| "Failed to transpile the expression.".to_owned())?;
         print!("{js_source}");
     } else {

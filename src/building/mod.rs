@@ -17,8 +17,8 @@ pub struct BuildConfig<'a> {
 impl<'a> BuildConfig<'a> {
     pub fn new(derivation: &'a Derivation, build_dir: &'a Path) -> BuildConfig<'a> {
         BuildConfig {
-            derivation: derivation,
-            build_dir: build_dir,
+            derivation,
+            build_dir,
             stderr: None,
             stdout: None,
         }
@@ -58,7 +58,7 @@ pub fn build_derivation_command(derivation: &Derivation, build_dir: &Path) -> Co
 }
 
 fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
-    set_env(&config.derivation);
+    set_env(config.derivation);
     mount_standard_paths(config)?;
     mount_input_drvs(config)?;
     mount_paths(
@@ -68,7 +68,7 @@ fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
 }
 
 fn run_build(config: &BuildConfig, stdout_fd: Option<RawFd>, stderr_fd: Option<RawFd>) -> isize {
-    let mut cmd = build_derivation_command(&config.derivation, &Path::new("/"));
+    let mut cmd = build_derivation_command(config.derivation, Path::new("/"));
     if let Some(stdout_fd) = stdout_fd {
         cmd.stdout(unsafe { Stdio::from_raw_fd(stdout_fd) });
     }

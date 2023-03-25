@@ -5,7 +5,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json;
 
 pub fn cmd() -> RixSubCommand {
-    return RixSubCommand {
+    RixSubCommand {
         name: "show-derivation",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
@@ -15,7 +15,7 @@ pub fn cmd() -> RixSubCommand {
                 "A list of derivation files. Other types of installables are not yet supported.",
             ))
         },
-    };
+    }
 }
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {

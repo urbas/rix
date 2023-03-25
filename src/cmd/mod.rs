@@ -18,10 +18,7 @@ pub fn print_err(msg: &str) {
 }
 
 pub fn to_cmd_err(result: Result<(), String>) -> Result<(), ExitCode> {
-    result.or_else(|err| {
-        print_err(&err);
-        Err(ExitCode::FAILURE)
-    })
+    result.map_err(|err| print_and_err(&err))
 }
 
 pub fn print_and_err(msg: &str) -> ExitCode {

@@ -6,7 +6,7 @@ use crate::eval::types::Value;
 use clap::{Arg, ArgAction, ArgMatches};
 
 pub fn cmd() -> RixSubCommand {
-    return RixSubCommand {
+    RixSubCommand {
         name: "eval",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
@@ -20,7 +20,7 @@ pub fn cmd() -> RixSubCommand {
                         .help("The expression to evaluate. Installables are treated as attribute paths of the attrset returned by the expression."),
                 )
         },
-    };
+    }
 }
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
@@ -34,7 +34,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
 
 fn print_value(value: &Value) {
     match value {
-        Value::AttrSet(hash_map) => print_attrset(&hash_map),
+        Value::AttrSet(hash_map) => print_attrset(hash_map),
         Value::Bool(boolean) => print!("{boolean}"),
         Value::Float(float) => print!("{float}"),
         Value::Int(int) => print!("{int}"),

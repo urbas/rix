@@ -21,14 +21,18 @@ impl HashType {
             HashType::Sha512 => 64,
         }
     }
+}
 
-    pub fn from_str(hash_type: &str) -> Option<HashType> {
+impl std::str::FromStr for HashType {
+    type Err = String;
+
+    fn from_str(hash_type: &str) -> Result<HashType, Self::Err> {
         match hash_type {
-            "md5" => Some(HashType::Md5),
-            "sha1" => Some(HashType::Sha1),
-            "sha256" => Some(HashType::Sha256),
-            "sha512" => Some(HashType::Sha512),
-            _ => None,
+            "md5" => Ok(HashType::Md5),
+            "sha1" => Ok(HashType::Sha1),
+            "sha256" => Ok(HashType::Sha256),
+            "sha512" => Ok(HashType::Sha512),
+            _ => Err(format!("Unknown hash type '{hash_type}'.")),
         }
     }
 }
@@ -59,7 +63,7 @@ pub fn parse(hash_str: &str, hash_type: HashType) -> Result<Hash, String> {
     }
 }
 
-pub fn sri_hash_components<'a>(hash_str: &'a str) -> Result<(&'a str, &'a str), String> {
+pub fn sri_hash_components(hash_str: &str) -> Result<(&str, &str), String> {
     hash_str
         .split_once('-')
         .or_else(|| hash_str.split_once(':'))
@@ -69,11 +73,11 @@ pub fn sri_hash_components<'a>(hash_str: &'a str) -> Result<(&'a str, &'a str), 
 pub fn to_base16(hash: &Hash) -> String {
     let bytes = &hash.bytes;
     let mut out_string = String::with_capacity(2 * bytes.len());
-    for i in 0..bytes.len() {
-        out_string.push(nibble_to_base16(bytes[i] >> 4));
-        out_string.push(nibble_to_base16(bytes[i] & 0x0f));
+    for byte in bytes {
+        out_string.push(nibble_to_base16(byte >> 4));
+        out_string.push(nibble_to_base16(byte & 0x0f));
     }
-    return out_string;
+    out_string
 }
 
 pub fn from_base16(base16_str: &str, hash_type: HashType) -> Result<Hash, String> {
@@ -83,7 +87,7 @@ pub fn from_base16(base16_str: &str, hash_type: HashType) -> Result<Hash, String
         bytes[idx] = parse_base16_digit(base16_str_bytes[idx * 2])? << 4
             | parse_base16_digit(base16_str_bytes[idx * 2 + 1])?;
     }
-    return Ok(Hash { hash_type, bytes });
+    Ok(Hash { hash_type, bytes })
 }
 
 pub fn to_base32(hash: &Hash) -> String {
@@ -105,7 +109,7 @@ pub fn to_base32(hash: &Hash) -> String {
         out_string.push(nibble_to_base32(c & 0x1f));
     }
 
-    return out_string;
+    out_string
 }
 
 pub fn from_base32(base32_str: &str, hash_type: HashType) -> Result<Hash, String> {
@@ -126,7 +130,7 @@ pub fn from_base32(base32_str: &str, hash_type: HashType) -> Result<Hash, String
             return Err(format!("Invalid base-32 string '{}'", base32_str));
         }
     }
-    return Ok(Hash { hash_type, bytes });
+    Ok(Hash { hash_type, bytes })
 }
 
 pub fn to_base64(hash: &Hash) -> String {
@@ -152,7 +156,7 @@ pub fn to_base64(hash: &Hash) -> String {
         out_string.push('=');
     }
 
-    return out_string;
+    out_string
 }
 
 pub fn from_base64(base64_str: &str, hash_type: HashType) -> Result<Hash, String> {
@@ -181,18 +185,18 @@ pub fn from_base64(base64_str: &str, hash_type: HashType) -> Result<Hash, String
             byte += 1;
         }
     }
-    return Ok(Hash { hash_type, bytes });
+    Ok(Hash { hash_type, bytes })
 }
 
 pub fn to_sri(hash: &Hash) -> String {
-    format!("{}-{}", hash.hash_type, to_base64(&hash))
+    format!("{}-{}", hash.hash_type, to_base64(hash))
 }
 
 fn nibble_to_base16(nibble: u8) -> char {
     if nibble < 10 {
         return (b'0' + nibble) as char;
     }
-    return (b'a' + nibble - 10) as char;
+    (b'a' + nibble - 10) as char
 }
 
 fn parse_base16_digit(chr: u8) -> Result<u8, String> {
@@ -218,7 +222,7 @@ fn nibble_to_base32(nibble: u8) -> char {
     } else if nibble < 27 {
         return (b'p' + nibble - 23) as char;
     }
-    return (b'v' + nibble - 27) as char;
+    (b'v' + nibble - 27) as char
 }
 
 fn parse_base32_digit(chr: u8) -> Result<u8, String> {
@@ -228,12 +232,10 @@ fn parse_base32_digit(chr: u8) -> Result<u8, String> {
         b'f'..=b'n' => Ok(chr - b'f' + 14),
         b'p'..=b's' => Ok(chr - b'p' + 23),
         b'v'..=b'z' => Ok(chr - b'v' + 27),
-        _ => {
-            return Err(format!(
-                "Character '{}' is not a valid base-32 character.",
-                chr as char
-            ))
-        }
+        _ => Err(format!(
+            "Character '{}' is not a valid base-32 character.",
+            chr as char
+        )),
     }
 }
 
@@ -253,11 +255,13 @@ const fn compute_base64_char_values() -> [u8; 256] {
         char_values[BASE_64_CHARS[idx] as usize] = idx as u8;
         idx += 1;
     }
-    return char_values;
+    char_values
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     fn sha256_sample() -> Hash {
@@ -294,11 +298,14 @@ mod tests {
 
     #[test]
     fn test_hash_type_from_str() {
-        assert_eq!(HashType::from_str("md5"), Some(HashType::Md5));
-        assert_eq!(HashType::from_str("sha1"), Some(HashType::Sha1));
-        assert_eq!(HashType::from_str("sha256"), Some(HashType::Sha256));
-        assert_eq!(HashType::from_str("sha512"), Some(HashType::Sha512));
-        assert_eq!(HashType::from_str("foobar"), None);
+        assert_eq!(HashType::from_str("md5"), Ok(HashType::Md5));
+        assert_eq!(HashType::from_str("sha1"), Ok(HashType::Sha1));
+        assert_eq!(HashType::from_str("sha256"), Ok(HashType::Sha256));
+        assert_eq!(HashType::from_str("sha512"), Ok(HashType::Sha512));
+        assert_eq!(
+            HashType::from_str("foobar"),
+            Err("Unknown hash type 'foobar'.".to_owned())
+        );
     }
 
     #[test]

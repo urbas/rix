@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use tempfile::tempdir;
 
 pub fn cmd() -> RixSubCommand {
-    return RixSubCommand {
+    RixSubCommand {
         name: "build-derivation",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
@@ -20,7 +20,7 @@ pub fn cmd() -> RixSubCommand {
             .arg(Arg::new("stdout").long("stdout").action(ArgAction::Set).help("The file to which to redirect the standard output of the build"))
             .arg(Arg::new("stderr").long("stderr").action(ArgAction::Set).help("The file to which to redirect the error output of the build"))
         },
-    };
+    }
 }
 
 pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {

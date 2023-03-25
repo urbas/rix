@@ -3,7 +3,7 @@ use crate::hashes;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 
 pub fn cmd() -> RixSubCommand {
-    return RixSubCommand {
+    RixSubCommand {
         name: "hash",
         handler: |args| to_cmd_err(handle_cmd(args)),
         cmd: |subcommand| {
@@ -23,7 +23,7 @@ pub fn cmd() -> RixSubCommand {
                     to_base_cmd("to-sri").about("convert hashes to SRI base-64 representation"),
                 )
         },
-    };
+    }
 }
 
 pub fn handle_cmd(parent_args: &ArgMatches) -> Result<(), String> {
@@ -68,12 +68,12 @@ where
         .map(|s| s.as_str())
         .unwrap_or("sri");
 
-    if let Some(hash_type) = hashes::HashType::from_str(type_arg) {
+    if let Ok(hash_type) = type_arg.parse() {
         return hash_strs.try_for_each(|hash_str| print_hash(hash_str, hash_type, &to_base_fn));
     } else if type_arg == "sri" {
         return sri_to_base(hash_strs, &to_base_fn);
     }
-    return Err("hash type not supported".to_owned());
+    Err("hash type not supported".to_owned())
 }
 
 fn sri_to_base<'a, F>(
@@ -85,10 +85,8 @@ where
 {
     hash_strs.try_for_each(|hash_str| {
         let (hash_type, hash_str) = hashes::sri_hash_components(hash_str)?;
-        if let Some(hash_type) = hashes::HashType::from_str(hash_type) {
-            return print_hash(hash_str, hash_type, &to_base_fn);
-        }
-        return Err(format!("Hash type '{}' not supported.", hash_type));
+        let hash_type: hashes::HashType = hash_type.parse()?;
+        print_hash(hash_str, hash_type, &to_base_fn)
     })
 }
 

@@ -76,7 +76,7 @@ fn write_input_drvs(
     write_iter(writer, &mut input_drvs.iter(), |writer, entry| {
         let (drv_path, drv_outputs) = entry;
         write!(writer, "(")?;
-        write_string(writer, &drv_path)?;
+        write_string(writer, drv_path)?;
         write!(writer, ",")?;
         write_iter(writer, &mut drv_outputs.iter(), write_string)?;
         write!(writer, ")")
@@ -96,7 +96,7 @@ where
     if let Some(entry) = iter.next() {
         write_value(writer, entry)?;
     }
-    while let Some(entry) = iter.next() {
+    for entry in iter.by_ref() {
         write!(writer, ",")?;
         write_value(writer, entry)?;
     }
@@ -110,7 +110,7 @@ fn write_output(
     output: &DerivationOutput,
 ) -> std::io::Result<()> {
     write!(writer, "(")?;
-    write_string(writer, &output_name)?;
+    write_string(writer, output_name)?;
     write!(writer, ",")?;
     write_string(writer, &output.path)?;
     write!(writer, ",")?;
