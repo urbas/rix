@@ -141,5 +141,5 @@ fn prepare_mount_path(source_path: &Path, new_root: &Path) -> Result<PathBuf, St
         fs::write(&target_path, "")
             .map_err(|e| format!("Error creating empty target file {:?}: {}", source_path, e))?;
     }
-    return Ok(target_path);
+    Ok(target_path)
 }

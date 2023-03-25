@@ -19,18 +19,14 @@
           rustup
         ];
 
-        devEnv = pkgs.buildEnv {
-          name = "devEnv";
-          paths = buildInputs;
-        };
-
       in {
-        packages.${system} = { inherit devEnv nixrt pkgs; };
+        packages.${system} = { inherit nixrt pkgs; };
         devShells.${system}.default = pkgs.stdenv.mkDerivation {
           name = "rix";
           inherit buildInputs;
           shellHook = ''
             export RIX_NIXRT_JS_MODULE=${nixrt.packages.${system}.default}/lib/node_modules/nixrt/src/lib.js
+            export RUSTFLAGS=-Dwarnings
           '';
         };
       });

@@ -21,10 +21,13 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let source_v8 = to_v8_source(scope, &source_str, "<eval string>");
     let module = v8::script_compiler::compile_module(scope, source_v8).unwrap();
 
-    if let None = module.instantiate_module(scope, resolve_module_callback) {
+    if module
+        .instantiate_module(scope, resolve_module_callback)
+        .is_none()
+    {
         todo!("Instantiation failure.")
     }
-    let Some(_) = module.evaluate(scope) else {
+    if module.evaluate(scope).is_none() {
         todo!("evaluation failed")
     };
 
@@ -251,7 +254,7 @@ fn emit_param_lambda(
         out_src,
     );
     *out_src += ",(evalCtx) => ";
-    emit_expr(&body, out_src)?;
+    emit_expr(body, out_src)?;
     *out_src += ")";
     Ok(())
 }
@@ -401,11 +404,7 @@ fn nix_value_from_module(
         nix_value.try_into().expect("Nix value must be a function.");
 
     let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
-    let nixrt: v8::Local<v8::Value> = namespace_obj
-        .get(scope, nixrt_attr.into())
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let nixrt: v8::Local<v8::Value> = namespace_obj.get(scope, nixrt_attr.into()).unwrap();
 
     let eval_ctx = create_eval_ctx(
         scope,
@@ -458,8 +457,8 @@ fn create_eval_ctx<'s>(
         .expect("Could not construct the global evaluation context."))
 }
 
-fn js_value_to_nix<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_to_nix(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> EvalResult {
@@ -498,8 +497,8 @@ fn js_value_to_nix<'s>(
     )
 }
 
-fn js_value_as_nix_int<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_as_nix_int(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, String> {
@@ -530,8 +529,8 @@ fn get_nixrt_type<'s>(
         .ok_or_else(|| format!("Could not find the type {type_name}."))
 }
 
-fn is_nixrt_type<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn is_nixrt_type(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
     type_name: &str,
@@ -545,8 +544,8 @@ fn is_nixrt_type<'s>(
     })
 }
 
-fn js_value_as_nix_string<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_as_nix_string(
+    scope: &mut v8::HandleScope<'_>,
     js_value: &v8::Local<v8::Value>,
 ) -> Option<Value> {
     if js_value.is_string() {
@@ -559,8 +558,8 @@ fn js_value_as_nix_string<'s>(
     None
 }
 
-fn js_value_as_nix_array<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_as_nix_array(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> Option<EvalResult> {
@@ -576,14 +575,14 @@ fn js_value_as_nix_array<'s>(
                     err => return Some(err),
                 }
             }
-            return Some(Ok(Value::List(rust_array)));
+            Some(Ok(Value::List(rust_array)))
         }
         Err(_) => None,
     }
 }
 
-fn js_value_as_nix_path<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_as_nix_path(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, String> {
@@ -608,8 +607,8 @@ fn try_get_js_object_key<'s>(
     Ok(js_object.get(scope, key_js_str.into()))
 }
 
-fn js_value_as_attrset<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_value_as_attrset(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> Option<EvalResult> {
@@ -620,8 +619,8 @@ fn js_value_as_attrset<'s>(
     }
 }
 
-fn js_map_as_attrset<'s>(
-    scope: &mut v8::HandleScope<'s>,
+fn js_map_as_attrset(
+    scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_map: &v8::Local<v8::Map>,
 ) -> EvalResult {
@@ -674,7 +673,7 @@ fn new_script_origin<'s>(
     )
 }
 
-fn to_v8_source<'a>(
+fn to_v8_source(
     scope: &mut v8::HandleScope,
     js_code: &str,
     source_path: &str,

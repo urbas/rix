@@ -90,9 +90,7 @@ fn to_base16_invalid_sri() {
 fn to_base16_sri_unknown_hash_type() {
     assert_hash_cmd(&["to-base16", "foobar-61h2nin3nx3lj7vj2ywixsiv5y"])
         .failure()
-        .stderr(predicate::str::diff(
-            "error: Hash type 'foobar' not supported.\n",
-        ));
+        .stderr(predicate::str::diff("error: Unknown hash type 'foobar'.\n"));
 }
 
 #[test]

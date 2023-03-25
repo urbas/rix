@@ -78,7 +78,7 @@ fn parse_derivation_output(input: &str) -> IResult<&str, (String, DerivationOutp
                 } else {
                     Some(hash_algo)
                 },
-                path: path,
+                path,
             },
         ),
     ))

@@ -36,7 +36,7 @@ jobs:
             /home/runner/.rustup
             /home/runner/.cargo
             target
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml', '**/flake.lock') }}
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', '**/.cargo/config.toml', '**/rust-toolchain.toml', '**/flake.nix', '**/flake.lock') }}
 
       - name: Build
         run: |
@@ -46,4 +46,5 @@ jobs:
 
           set -x
           cargo fmt --check
+          cargo clippy
           cargo test
