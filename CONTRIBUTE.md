@@ -44,3 +44,19 @@ cargo test
 cargo run -- --help
 cargo run -- eval --expr '1 + 1'
 ```
+
+# Troubleshooting
+
+## Getting a cargo error after an update
+
+If you're seeing an error like this:
+
+```
+error: the 'cargo' binary, normally provided by the 'cargo' component, is not applicable to the '<rust toolchain>' toolchain
+```
+
+Then run the following to fix it:
+
+```bash
+rustup toolchain uninstall <rust toolchain>
+```

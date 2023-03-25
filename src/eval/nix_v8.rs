@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::path::Path;
 use std::{collections::HashMap, sync::Once};
 
-use rnix::{ast, ast::HasEntry, SyntaxKind, SyntaxToken};
+use rnix::{ast, ast::HasEntry, SyntaxKind};
 use rowan::ast::AstNode;
 
 use crate::eval::types::EvalResult;
@@ -73,16 +73,21 @@ fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
-    emit_nixrt_bin_op(
+    emit_expr(
         &apply
             .lambda()
             .expect("Unexpected lambda application without the lambda."),
+        out_src,
+    )?;
+    out_src.push('(');
+    emit_expr(
         &apply
             .argument()
             .expect("Unexpected lambda application without arguments."),
-        "nixrt.apply",
         out_src,
-    )
+    )?;
+    out_src.push(')');
+    Ok(())
 }
 
 fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), String> {
@@ -178,15 +183,16 @@ fn emit_nixrt_bin_op(
 }
 
 fn emit_ident(ident: &ast::Ident, out_src: &mut String) -> Result<(), String> {
-    let token = ident.ident_token().expect("Not implemented");
-    match token.kind() {
-        SyntaxKind::TOKEN_IDENT => emit_ident_token(&token, out_src),
-        _ => todo!(),
+    let token = ident.ident_token().expect("Unexpected ident without name.");
+    let token_text = token.text();
+    match token_text {
+        "true" | "false" | "null" => out_src.push_str(token_text),
+        _ => {
+            out_src.push_str("evalCtx.lookup(\"");
+            js_string_escape_into(token_text, out_src);
+            out_src.push_str("\")");
+        }
     }
-}
-
-fn emit_ident_token(token: &SyntaxToken, out_src: &mut String) -> Result<(), String> {
-    *out_src += token.text();
     Ok(())
 }
 
@@ -220,16 +226,46 @@ fn emit_if_else(lambda: &ast::IfElse, out_src: &mut String) -> Result<(), String
 }
 
 fn emit_lambda(lambda: &ast::Lambda, out_src: &mut String) -> Result<(), String> {
-    let _param = lambda
+    let param = lambda
         .param()
         .expect("Unexpected lambda without parameters.");
     let body = lambda
         .body()
         .expect("Unexpected lambda without parameters.");
-    *out_src += "new nixrt.Lambda(";
+    match param {
+        ast::Param::IdentParam(ident_param) => emit_param_lambda(&ident_param, &body, out_src),
+        ast::Param::Pattern(_pattern) => todo!(),
+    }
+}
+
+fn emit_param_lambda(
+    ident_param: &ast::IdentParam,
+    body: &ast::Expr,
+    out_src: &mut String,
+) -> Result<(), String> {
+    *out_src += "nixrt.paramLambda(evalCtx,";
+    emit_ident_as_js_string(
+        &ident_param
+            .ident()
+            .expect("Unexcpected missing lambda parameter token."),
+        out_src,
+    );
+    *out_src += ",(evalCtx) => ";
     emit_expr(&body, out_src)?;
     *out_src += ")";
     Ok(())
+}
+
+fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
+    out_src.push('"');
+    js_string_escape_into(
+        ident
+            .ident_token()
+            .expect("Unexpected ident missing token.")
+            .text(),
+        out_src,
+    );
+    out_src.push('"');
 }
 
 fn emit_list(list: &ast::List, out_src: &mut String) -> Result<(), String> {
@@ -364,8 +400,16 @@ fn nix_value_from_module(
     let nix_value: v8::Local<v8::Function> =
         nix_value.try_into().expect("Nix value must be a function.");
 
+    let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
+    let nixrt: v8::Local<v8::Value> = namespace_obj
+        .get(scope, nixrt_attr.into())
+        .unwrap()
+        .try_into()
+        .unwrap();
+
     let eval_ctx = create_eval_ctx(
         scope,
+        &nixrt,
         &current_dir().map_err(|err| {
             format!("Failed to determine the current working directory. Error: {err}")
         })?,
@@ -384,21 +428,18 @@ fn nix_value_from_module(
             );
         return Err(err_msg);
     };
-
-    let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
-    let nixrt: v8::Local<v8::Value> = namespace_obj
-        .get(scope, nixrt_attr.into())
-        .unwrap()
-        .try_into()
-        .unwrap();
     js_value_to_nix(scope, &nixrt, &nix_value)
 }
 
 fn create_eval_ctx<'s>(
     scope: &mut v8::HandleScope<'s>,
+    nixrt: &v8::Local<v8::Value>,
     script_path: &Path,
 ) -> Result<v8::Local<'s, v8::Object>, String> {
-    let eval_ctx = v8::Object::new(scope);
+    let eval_ctx_type = get_nixrt_type(scope, nixrt, "EvalCtx")?;
+    let eval_ctx_constructor: v8::Local<v8::Function> = eval_ctx_type
+        .try_into()
+        .expect("Could not get the constructor of the evaluation context class.");
 
     let real_path = script_path
         .canonicalize()
@@ -409,13 +450,12 @@ fn create_eval_ctx<'s>(
     let script_dir_str = real_path
         .to_str()
         .ok_or_else(|| format!("Failed to converft the path {script_dir:?} to a string."))?;
-    let js_script_dir_name =
-        v8::String::new(scope, "scriptDir").expect("Unexpected internal error.");
     let js_script_dir_path =
         v8::String::new(scope, script_dir_str).expect("Unexpected internal error.");
-    eval_ctx.set(scope, js_script_dir_name.into(), js_script_dir_path.into());
 
-    Ok(eval_ctx)
+    Ok(eval_ctx_constructor
+        .new_instance(scope, &[js_script_dir_path.into()])
+        .expect("Could not construct the global evaluation context."))
 }
 
 fn js_value_to_nix<'s>(
@@ -434,6 +474,9 @@ fn js_value_to_nix<'s>(
             .unwrap();
         return Ok(Value::Float(number));
     }
+    if js_value.is_function() {
+        return Ok(Value::Lambda);
+    }
     if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value)? {
         return Ok(value);
     }
@@ -446,7 +489,7 @@ fn js_value_to_nix<'s>(
     if let Some(value) = js_value_as_attrset(scope, nixrt, js_value) {
         return value;
     }
-    if let Some(value) = js_object_as_nix_value(scope, nixrt, js_value)? {
+    if let Some(value) = js_value_as_nix_path(scope, nixrt, js_value)? {
         return Ok(value);
     }
     todo!(
@@ -537,17 +580,6 @@ fn js_value_as_nix_array<'s>(
         }
         Err(_) => None,
     }
-}
-
-fn js_object_as_nix_value<'s>(
-    scope: &mut v8::HandleScope<'s>,
-    nixrt: &v8::Local<v8::Value>,
-    js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
-    if is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
-        return Ok(Some(Value::Lambda));
-    }
-    js_value_as_nix_path(scope, nixrt, js_value)
 }
 
 fn js_value_as_nix_path<'s>(
@@ -906,6 +938,7 @@ mod tests {
     #[test]
     fn test_eval_lambda_application() {
         assert_eq!(eval_ok("(a: 1) 2"), Value::Int(1));
+        assert_eq!(eval_ok("(a: a + 1) 2"), Value::Int(3));
     }
 
     #[test]
