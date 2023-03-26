@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::path::Path;
 use std::{collections::HashMap, sync::Once};
 
-use rnix::{ast, ast::HasEntry, SyntaxKind};
+use rnix::{ast, SyntaxKind};
 use rowan::ast::AstNode;
 
 use crate::eval::types::EvalResult;
@@ -64,6 +64,7 @@ fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
         ast::Expr::Ident(ident) => emit_ident(ident, out_src),
         ast::Expr::IfElse(if_else) => emit_if_else(if_else, out_src),
         ast::Expr::Lambda(lambda) => emit_lambda(lambda, out_src),
+        ast::Expr::LetIn(let_in) => emit_let_in(let_in, out_src),
         ast::Expr::List(list) => emit_list(list, out_src),
         ast::Expr::Literal(literal) => emit_literal(literal, out_src),
         ast::Expr::Paren(paren) => emit_paren(paren, out_src),
@@ -93,7 +94,7 @@ fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), String> {
+fn emit_attrset(attrset: &impl ast::HasEntry, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.attrset(";
     for attrpath_value in attrset.attrpath_values() {
         *out_src += "[";
@@ -269,6 +270,20 @@ fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
         out_src,
     );
     out_src.push('"');
+}
+
+fn emit_let_in(_let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
+    *out_src += "nixrt.letIn(evalCtx,";
+    emit_attrset(_let_in, out_src)?;
+    *out_src += ",(evalCtx) => ";
+    emit_expr(
+        &_let_in
+            .body()
+            .expect("Unexpected let-in expression without a body."),
+        out_src,
+    )?;
+    *out_src += ")";
+    Ok(())
 }
 
 fn emit_list(list: &ast::List, out_src: &mut String) -> Result<(), String> {
@@ -969,5 +984,10 @@ mod tests {
     #[test]
     fn test_eval_if_then_else_invalid_type() {
         assert!(evaluate("if 0 then 1 else 0").is_err());
+    }
+
+    #[test]
+    fn test_eval_let_in() {
+        assert_eq!(eval_ok("let a = 1; in a"), Value::Int(1));
     }
 }
