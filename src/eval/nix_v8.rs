@@ -238,7 +238,7 @@ fn emit_lambda(lambda: &ast::Lambda, out_src: &mut String) -> Result<(), String>
         .expect("Unexpected lambda without parameters.");
     match param {
         ast::Param::IdentParam(ident_param) => emit_param_lambda(&ident_param, &body, out_src),
-        ast::Param::Pattern(_pattern) => todo!(),
+        ast::Param::Pattern(pattern) => emit_pattern_lambda(&pattern, &body, out_src),
     }
 }
 
@@ -251,10 +251,36 @@ fn emit_param_lambda(
     emit_ident_as_js_string(
         &ident_param
             .ident()
-            .expect("Unexcpected missing lambda parameter token."),
+            .expect("Unexpected missing lambda parameter identifier."),
         out_src,
     );
     *out_src += ",(evalCtx) => ";
+    emit_expr(body, out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
+fn emit_pattern_lambda(
+    pattern: &ast::Pattern,
+    body: &ast::Expr,
+    out_src: &mut String,
+) -> Result<(), String> {
+    *out_src += "nixrt.patternLambda(evalCtx,[";
+    for pattern_entry in pattern.pat_entries() {
+        let ident = pattern_entry.ident().ok_or_else(|| {
+            "Unsupported lambda pattern parameter without an identifier.".to_owned()
+        })?;
+        if pattern_entry.default().is_some() {
+            todo!(
+                "support for default lambda parameters. {:?}",
+                ident.to_string()
+            )
+        }
+        *out_src += "[";
+        emit_ident_as_js_string(&ident, out_src);
+        *out_src += ",undefined],";
+    }
+    *out_src += "],(evalCtx) => ";
     emit_expr(body, out_src)?;
     *out_src += ")";
     Ok(())
@@ -953,6 +979,13 @@ mod tests {
     fn test_eval_lambda_application() {
         assert_eq!(eval_ok("(a: 1) 2"), Value::Int(1));
         assert_eq!(eval_ok("(a: a + 1) 2"), Value::Int(3));
+    }
+
+    #[test]
+    fn test_eval_pattern_lambda() {
+        assert_eq!(eval_ok("({a, b}: a + b) {a = 1; b = 2;}"), Value::Int(3));
+        // TODO: '(a@{a}: args) {a = 42;}'
+        // RESULT: error: duplicate formal function argument 'a'.
     }
 
     #[test]
