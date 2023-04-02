@@ -270,15 +270,13 @@ fn emit_pattern_lambda(
         let ident = pattern_entry.ident().ok_or_else(|| {
             "Unsupported lambda pattern parameter without an identifier.".to_owned()
         })?;
-        if pattern_entry.default().is_some() {
-            todo!(
-                "support for default lambda parameters. {:?}",
-                ident.to_string()
-            )
-        }
         *out_src += "[";
         emit_ident_as_js_string(&ident, out_src);
-        *out_src += ",undefined],";
+        *out_src += ",";
+        if let Some(default_value) = pattern_entry.default() {
+            emit_expr(&default_value, out_src)?;
+        }
+        *out_src += "],";
     }
     *out_src += "],(evalCtx) => ";
     emit_expr(body, out_src)?;
@@ -984,8 +982,11 @@ mod tests {
     #[test]
     fn test_eval_pattern_lambda() {
         assert_eq!(eval_ok("({a, b}: a + b) {a = 1; b = 2;}"), Value::Int(3));
+        assert_eq!(eval_ok("({a, b ? 2}: a + b) {a = 1;}"), Value::Int(3));
         // TODO: '(a@{a}: args) {a = 42;}'
         // RESULT: error: duplicate formal function argument 'a'.
+        // TODO: '({a ? 1}@args: args.a) {}'
+        // RESULT: error: attribute 'a' missing.
     }
 
     #[test]
