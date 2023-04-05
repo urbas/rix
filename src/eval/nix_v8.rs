@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env::current_dir;
 use std::path::Path;
 use std::{collections::HashMap, sync::Once};
@@ -265,11 +266,22 @@ fn emit_pattern_lambda(
     body: &ast::Expr,
     out_src: &mut String,
 ) -> Result<(), String> {
-    *out_src += "nixrt.patternLambda(evalCtx,[";
+    let mut formal_arg_names = HashSet::new();
+    *out_src += "nixrt.patternLambda(evalCtx,";
+    if let Some(indent) = pattern.pat_bind().and_then(|pat_bind| pat_bind.ident()) {
+        formal_arg_names.insert(indent.to_string());
+        emit_ident_as_js_string(&indent, out_src);
+    } else {
+        *out_src += "undefined";
+    }
+    *out_src += ",[";
     for pattern_entry in pattern.pat_entries() {
         let ident = pattern_entry.ident().ok_or_else(|| {
             "Unsupported lambda pattern parameter without an identifier.".to_owned()
         })?;
+        if !formal_arg_names.insert(ident.to_string()) {
+            return Err(format!("duplicate formal function argument '{}'.", ident));
+        }
         *out_src += "[";
         emit_ident_as_js_string(&ident, out_src);
         *out_src += ",";
@@ -286,13 +298,7 @@ fn emit_pattern_lambda(
 
 fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
     out_src.push('"');
-    js_string_escape_into(
-        ident
-            .ident_token()
-            .expect("Unexpected ident missing token.")
-            .text(),
-        out_src,
-    );
+    js_string_escape_into(&ident.to_string(), out_src);
     out_src.push('"');
 }
 
@@ -983,10 +989,14 @@ mod tests {
     fn test_eval_pattern_lambda() {
         assert_eq!(eval_ok("({a, b}: a + b) {a = 1; b = 2;}"), Value::Int(3));
         assert_eq!(eval_ok("({a, b ? 2}: a + b) {a = 1;}"), Value::Int(3));
-        // TODO: '(a@{a}: args) {a = 42;}'
-        // RESULT: error: duplicate formal function argument 'a'.
-        // TODO: '({a ? 1}@args: args.a) {}'
-        // RESULT: error: attribute 'a' missing.
+        assert!(evaluate("{a, a}: a").is_err());
+    }
+
+    #[test]
+    fn test_eval_pattern_lambda_args_binding() {
+        assert_eq!(eval_ok("({a}@args: args.a) {a = 1;}"), Value::Int(1));
+        assert!(evaluate("{a}@a: a").is_err());
+        assert!(evaluate("({a ? 1}@args: args.a) {}").is_err());
     }
 
     #[test]
