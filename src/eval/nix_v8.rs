@@ -73,6 +73,7 @@ fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
         ast::Expr::Select(select) => emit_select_expr(select, out_src),
         ast::Expr::Str(string) => emit_string_expr(string, out_src),
         ast::Expr::UnaryOp(unary_op) => emit_unary_op(unary_op, out_src),
+        ast::Expr::With(with) => emit_with(with, out_src),
         _ => panic!("emit_expr: not implemented: {:?}", nix_ast),
     }
 }
@@ -302,12 +303,12 @@ fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
     out_src.push('"');
 }
 
-fn emit_let_in(_let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
+fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.letIn(evalCtx,";
-    emit_attrset(_let_in, out_src)?;
+    emit_attrset(let_in, out_src)?;
     *out_src += ",(evalCtx) => ";
     emit_expr(
-        &_let_in
+        &let_in
             .body()
             .expect("Unexpected let-in expression without a body."),
         out_src,
@@ -432,6 +433,25 @@ fn emit_nixrt_unary_op(
     *out_src += nixrt_function;
     *out_src += "(";
     emit_expr(operand, out_src)?;
+    *out_src += ")";
+    Ok(())
+}
+
+fn emit_with(with: &ast::With, out_src: &mut String) -> Result<(), String> {
+    *out_src += "nixrt.withExpr(evalCtx,";
+    emit_expr(
+        &with
+            .namespace()
+            .ok_or_else(|| "Unexpected 'with' expression without a namespace.".to_string())?,
+        out_src,
+    )?;
+    *out_src += ",(evalCtx) => ";
+    emit_expr(
+        &with
+            .body()
+            .ok_or_else(|| "Unexpected 'with' expression without a body.".to_string())?,
+        out_src,
+    )?;
     *out_src += ")";
     Ok(())
 }
@@ -1033,5 +1053,12 @@ mod tests {
     #[test]
     fn test_eval_let_in() {
         assert_eq!(eval_ok("let a = 1; in a"), Value::Int(1));
+    }
+
+    #[test]
+    fn test_eval_with() {
+        assert_eq!(eval_ok("with {a = 1;}; a"), Value::Int(1));
+        assert_eq!(eval_ok("let a = 2; in with {a = 1;}; a"), Value::Int(2));
+        assert_eq!(eval_ok("with {a = 1;}; with {a = 2;}; a"), Value::Int(2));
     }
 }
