@@ -96,9 +96,17 @@ fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
     Ok(())
 }
 
-fn emit_attrset(attrset: &impl ast::HasEntry, out_src: &mut String) -> Result<(), String> {
+fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), String> {
+    if attrset.rec_token().is_some() {
+        todo!("recursive attrset")
+    }
+    emit_has_entry(attrset, out_src)?;
+    Ok(())
+}
+
+fn emit_has_entry(has_entry: &impl ast::HasEntry, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.attrset(";
-    for attrpath_value in attrset.attrpath_values() {
+    for attrpath_value in has_entry.attrpath_values() {
         *out_src += "[";
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
@@ -305,7 +313,7 @@ fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
 
 fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.letIn(evalCtx,";
-    emit_attrset(let_in, out_src)?;
+    emit_has_entry(let_in, out_src)?;
     *out_src += ",(evalCtx) => ";
     emit_expr(
         &let_in
