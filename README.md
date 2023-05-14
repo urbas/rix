@@ -27,10 +27,7 @@ Keep in mind that `rix` is still in development and many features are not yet im
   - 🌕 stage 0: creates a sandbox.
   - 🌕 stage 1: builds derivations without dependencies.
   - 🌗 stage 2: builds derivations with dependencies.
-    - TODO: mount directories for each derivation output.
-    - TODO: deduplicate mount paths (rix now fails if multiple dependent derivations specify the same mount paths).
     - TODO: prevent internet access.
-    - TODO: mount runtime dependencies of output paths too.
   - 🌑 stage 3: builds fixed derivations (with internet access).
   - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies are present).
 
