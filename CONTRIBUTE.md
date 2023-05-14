@@ -44,6 +44,24 @@ cargo run -- --help
 cargo run -- eval --expr '1 + 1'
 ```
 
+## Updating dependencies
+
+Update the `nix` tool, the `nixrt` library, `rustup`, and dependencies used in integration tests:
+
+```bash
+nix flake update
+```
+
+Update the version of Rust:
+1. find the latest version on https://www.rust-lang.org/
+2. Replace the old version of rust in [`rust-toolchain.toml`](./rust-toolchain.toml) with the new version.
+
+Update Rust dependencies:
+```bash
+cargo update
+```
+
+
 # Troubleshooting
 
 ## Getting a cargo error after an update
