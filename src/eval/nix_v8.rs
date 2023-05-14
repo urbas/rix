@@ -100,22 +100,32 @@ fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), Stri
     if attrset.rec_token().is_some() {
         todo!("recursive attrset")
     }
-    emit_has_entry(attrset, out_src)?;
+    emit_has_entry(attrset, false, out_src)?;
     Ok(())
 }
 
-fn emit_has_entry(has_entry: &impl ast::HasEntry, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.attrset(";
+fn emit_has_entry(
+    has_entry: &impl ast::HasEntry,
+    is_recursive: bool,
+    out_src: &mut String,
+) -> Result<(), String> {
+    *out_src += "nixrt.";
+    *out_src += if is_recursive {
+        "recursiveAttrset"
+    } else {
+        "attrset"
+    };
+    *out_src += "(evalCtx,[";
     for attrpath_value in has_entry.attrpath_values() {
         *out_src += "[";
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
         emit_attrpath(&attrpath, out_src)?;
-        *out_src += ",";
+        *out_src += ",(evalCtx) => ";
         emit_expr(value, out_src)?;
         *out_src += "],";
     }
-    *out_src += ")";
+    *out_src += "])";
     Ok(())
 }
 
@@ -313,7 +323,7 @@ fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
 
 fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
     *out_src += "nixrt.letIn(evalCtx,";
-    emit_has_entry(let_in, out_src)?;
+    emit_has_entry(let_in, true, out_src)?;
     *out_src += ",(evalCtx) => ";
     emit_expr(
         &let_in
@@ -487,11 +497,26 @@ fn nix_value_from_module(
         })?,
     )?;
 
+    let nix_value = call_js_function(scope, &nix_value, &[eval_ctx.into()])?;
+
+    let to_strict_fn: v8::Local<v8::Function> = try_get_js_object_key(scope, &nixrt, "toStrict")?
+        .expect("Could not find the function `toStrict` in `nixrt`.")
+        .try_into()
+        .expect("`nixrt.toStrict` is not a function.");
+    let strict_nix_value = call_js_function(scope, &to_strict_fn, &[nix_value])?;
+
+    js_value_to_nix(scope, &nixrt, &strict_nix_value)
+}
+
+fn call_js_function<'s>(
+    scope: &mut v8::ContextScope<'_, v8::HandleScope<'s>>,
+    js_function: &v8::Local<v8::Function>,
+    args: &[v8::Local<v8::Value>],
+) -> Result<v8::Local<'s, v8::Value>, String> {
     let scope = &mut v8::TryCatch::new(scope);
     let recv = v8::undefined(scope).into();
-    let Some(nix_value) = nix_value.call(scope, recv, &[eval_ctx.into()]) else {
-        // TODO: The stack trace needs to be source-mapped. Unfortunately, this doesn't
-        // seem to be supported yet: https://github.com/denoland/deno/issues/4499
+    let Some(strict_nix_value) = js_function.call(scope, recv, args) else {
+        // TODO: Again, the stack trace needs to be source-mapped. See TODO above.
         let err_msg = scope
             .stack_trace()
             .map_or(
@@ -500,7 +525,7 @@ fn nix_value_from_module(
             );
         return Err(err_msg);
     };
-    js_value_to_nix(scope, &nixrt, &nix_value)
+    Ok(strict_nix_value)
 }
 
 fn create_eval_ctx<'s>(
@@ -940,13 +965,23 @@ mod tests {
             eval_ok("{a = 1;}"),
             Value::AttrSet(HashMap::from([("a".to_owned(), Value::Int(1))]))
         );
-        assert_eq!(
-            eval_ok("{a.b = 1;}"),
-            Value::AttrSet(HashMap::from([(
-                "a".to_owned(),
-                Value::AttrSet(HashMap::from([("b".to_owned(), Value::Int(1))])),
-            )]))
-        );
+    }
+
+    #[test]
+    fn test_eval_attrset_literal_nesting() {
+        let expected_attrset = Value::AttrSet(HashMap::from([(
+            "a".to_owned(),
+            Value::AttrSet(HashMap::from([("b".to_owned(), Value::Int(1))])),
+        )]));
+        assert_eq!(eval_ok("{a.b = 1;}"), expected_attrset);
+        assert_eq!(eval_ok("{ a = {}; a.b = 1; }"), expected_attrset);
+        assert!(evaluate("{ a = 1; a.b = 1; }").is_err());
+        // TODO: Replicate behaviour: nix currently throws an error while evaluating the following:
+        // { a = builtins.trace "Evaluated" {}; a.b = 1; }
+        // error: attribute 'a.b' already defined at
+        // In similar vein, `nix` throws evaluating this expression:
+        // let c = {}; in { a = c; a.b = 1; }
+        // We should reproduce this here.
     }
 
     #[test]
@@ -1068,5 +1103,10 @@ mod tests {
         assert_eq!(eval_ok("with {a = 1;}; a"), Value::Int(1));
         assert_eq!(eval_ok("let a = 2; in with {a = 1;}; a"), Value::Int(2));
         assert_eq!(eval_ok("with {a = 1;}; with {a = 2;}; a"), Value::Int(2));
+    }
+
+    #[test]
+    fn test_eval_recursive_let() {
+        assert_eq!(eval_ok("let a = 1; b = a + 1; in b"), Value::Int(2));
     }
 }
