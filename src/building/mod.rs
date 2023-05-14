@@ -43,12 +43,11 @@ impl<'a> BuildConfig<'a> {
 pub fn build_derivation_sandboxed(config: &BuildConfig) -> Result<i32, String> {
     // this function assumes all derivation inputs are present and won't be
     // GC'd for the duration of this build
-    // TODO: need to mount input_srcs of input_drvs too.
     let stdout_fd = config.stdout.map(|file| file.as_raw_fd());
     let stderr_fd = config.stderr.map(|file| file.as_raw_fd());
-    // We have to find mount paths for things like dependencies before
-    // we enter the sandbox. That's because in the sandbox we won't have
-    // access to pretty much anything.
+    // we have to find mount paths (e.g.: input derivation output paths and their
+    // runtime dependencies) before we enter the sandbox. That's because in the
+    // sandbox we won't have access to pretty much anything.
     let mount_paths = get_mount_paths(config)?;
     // return value is the error code of the builder or 255 if anything went
     // wrong and we failed to execute the builder
