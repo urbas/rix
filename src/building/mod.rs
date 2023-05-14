@@ -1,24 +1,31 @@
 use crate::derivations::{load_derivation, Derivation};
-use crate::sandbox::{mount_path, mount_paths, run_in_sandbox};
-use std::env::set_var;
+use crate::sandbox;
+use crate::store::api::DepsInfo;
+use std::collections::HashSet;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::process::CommandExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 pub struct BuildConfig<'a> {
-    derivation: &'a Derivation,
     build_dir: &'a Path,
-    stdout: Option<&'a File>,
+    deps_info: &'a dyn DepsInfo,
+    derivation: &'a Derivation,
     stderr: Option<&'a File>,
+    stdout: Option<&'a File>,
 }
 
 impl<'a> BuildConfig<'a> {
-    pub fn new(derivation: &'a Derivation, build_dir: &'a Path) -> BuildConfig<'a> {
+    pub fn new(
+        derivation: &'a Derivation,
+        build_dir: &'a Path,
+        deps_info: &'a dyn DepsInfo,
+    ) -> BuildConfig<'a> {
         BuildConfig {
-            derivation,
             build_dir,
+            deps_info,
+            derivation,
             stderr: None,
             stdout: None,
         }
@@ -39,11 +46,15 @@ pub fn build_derivation_sandboxed(config: &BuildConfig) -> Result<i32, String> {
     // TODO: need to mount input_srcs of input_drvs too.
     let stdout_fd = config.stdout.map(|file| file.as_raw_fd());
     let stderr_fd = config.stderr.map(|file| file.as_raw_fd());
+    // We have to find mount paths for things like dependencies before
+    // we enter the sandbox. That's because in the sandbox we won't have
+    // access to pretty much anything.
+    let mount_paths = get_mount_paths(config)?;
     // return value is the error code of the builder or 255 if anything went
     // wrong and we failed to execute the builder
-    run_in_sandbox(
+    sandbox::run_in_sandbox(
         config.build_dir,
-        || prepare_sandbox(config),
+        || prepare_sandbox(config, &mount_paths),
         || run_build(config, stdout_fd, stderr_fd),
     )
 }
@@ -57,11 +68,10 @@ pub fn build_derivation_command(derivation: &Derivation, build_dir: &Path) -> Co
     cmd
 }
 
-fn prepare_sandbox(config: &BuildConfig) -> Result<(), String> {
-    set_env(config.derivation);
+fn prepare_sandbox(config: &BuildConfig, mount_paths: &HashSet<PathBuf>) -> Result<(), String> {
     mount_standard_paths(config)?;
-    mount_input_drvs(config)?;
-    mount_paths(
+    mount_input_drvs(config, mount_paths)?;
+    sandbox::mount_paths(
         config.derivation.input_srcs.iter().map(Path::new),
         config.build_dir,
     )
@@ -82,29 +92,32 @@ fn run_build(config: &BuildConfig, stdout_fd: Option<RawFd>, stderr_fd: Option<R
     255
 }
 
-fn set_env(derivation: &Derivation) {
-    for (var_name, var_value) in &derivation.env {
-        set_var(var_name, var_value);
-    }
-}
-
-fn mount_input_drvs(config: &BuildConfig) -> Result<(), String> {
-    for (drv_path, outputs) in &config.derivation.input_drvs {
-        let derivation = load_derivation(drv_path)?;
-        for output in outputs {
-            let drv_output = derivation.outputs.get(output).ok_or_else(|| {
-                format!(
-                    "Could not find output '{}' of derivation {:?}",
-                    output, drv_path
-                )
-            })?;
-            mount_path(Path::new(&drv_output.path), config.build_dir)?;
-            // TODO: mount runtime dependencies of the output path too.
-        }
+fn mount_input_drvs(config: &BuildConfig, mount_paths: &HashSet<PathBuf>) -> Result<(), String> {
+    for path in mount_paths {
+        sandbox::mount_path(path, config.build_dir)?;
     }
     Ok(())
 }
 
+fn get_mount_paths(config: &BuildConfig) -> Result<HashSet<PathBuf>, String> {
+    let mut mount_paths = HashSet::new();
+    for (drv_path, outputs) in &config.derivation.input_drvs {
+        let derivation = load_derivation(drv_path)?;
+        for output in outputs {
+            let drv_output = derivation.outputs.get(output).ok_or_else(|| {
+                format!("Could not find output '{output}' of derivation {drv_path}")
+            })?;
+            let drv_output_path = PathBuf::from(&drv_output.path);
+            // We have to include direct runtime dependencies of input derivations. We don't need
+            // to recurse transitively into input derivations of input derivations as these shouldn't
+            // be needed.
+            mount_paths.extend(config.deps_info.get_runtime_deps(&drv_output_path)?);
+            mount_paths.insert(drv_output_path);
+        }
+    }
+    Ok(mount_paths)
+}
+
 fn mount_standard_paths(config: &BuildConfig) -> Result<(), String> {
-    mount_path(Path::new("/dev/null"), config.build_dir)
+    sandbox::mount_path(Path::new("/dev/null"), config.build_dir)
 }

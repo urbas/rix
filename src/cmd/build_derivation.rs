@@ -1,6 +1,7 @@
 use crate::building::{build_derivation_sandboxed, BuildConfig};
 use crate::cmd::{to_cmd_err, RixSubCommand};
 use crate::derivations;
+use crate::store::nix_delegation_store::NixDelegationStore;
 use clap::{Arg, ArgAction, ArgMatches};
 use std::fs::File;
 use std::path::PathBuf;
@@ -41,7 +42,8 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
         .transpose()
         .map_err(|err| format!("Could not create the stderr file. Error: {}", err))?;
     let derivation = derivations::load_derivation(derivation_path)?;
-    let mut build_config = BuildConfig::new(&derivation, &build_dir);
+    let nix_delegation_store = NixDelegationStore::default();
+    let mut build_config = BuildConfig::new(&derivation, &build_dir, &nix_delegation_store);
     if let Some(stdout_file) = stdout_file.as_ref() {
         build_config.stdout_to_file(stdout_file);
     }

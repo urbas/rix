@@ -89,6 +89,7 @@ pub fn pivot_root(new_root: &Path) -> Result<(), String> {
     fs::create_dir_all(&old_root).map_err(|e| format!("Error creating oldroot: {}", e))?;
     unistd::pivot_root(new_root, &old_root)
         .map_err(|e| format!("Error pivoting to new root: {}", e))?;
+    // TODO: it looks like we have to call `chroot` after `pivot_root`: https://superuser.com/questions/1575316/usage-of-chroot-after-pivot-root
     unistd::chdir("/").map_err(|e| format!("Error cd'ing to new root: {}", e))?;
     mount::umount2(&old_root_absolute, mount::MntFlags::MNT_DETACH)
         .map_err(|e| format!("Error unmounting old root: {}", e))?;
