@@ -25,7 +25,7 @@
           name = "rix";
           inherit buildInputs;
           shellHook = ''
-            export RIX_NIXRT_JS_MODULE=${nixrt.packages.${system}.default}/lib/node_modules/nixrt/src/lib.js
+            export RIX_NIXRT_JS_MODULE=${nixrt.packages.${system}.default}/lib/node_modules/nixrt/dist/lib.js
             export RUSTFLAGS=-Dwarnings
           '';
         };
