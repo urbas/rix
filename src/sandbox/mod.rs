@@ -20,7 +20,7 @@ pub fn run_in_sandbox(
             return 255;
         }
         if let Err(err) = pivot_root(new_root) {
-            eprintln!("Error setting up builder sandbox: {err}");
+            eprintln!("Error setting up the root filesystem in the sandbox: {err}");
             return 255;
         }
         run()
@@ -32,22 +32,17 @@ pub fn run_in_sandbox(
         sched::CloneFlags::CLONE_NEWNS | sched::CloneFlags::CLONE_NEWUSER,
         Some(libc::SIGCHLD),
     )
-    .map_err(|err| format!("Failed to start the builder process. Error: {err}"))?;
+    .map_err(|err| format!("Failed to start the process in the sandbox. Error: {err}"))?;
 
     match wait::waitpid(pid, None) {
         Ok(wait::WaitStatus::Exited(_, exit_code)) => Ok(exit_code),
-        Ok(wait::WaitStatus::Signaled(_, signal, core_dumped)) => {
-            eprintln!("Builder killed by signal {signal} (core dumped: {core_dumped})");
-            Ok(255)
-        }
-        Ok(state) => {
-            eprintln!("Unexpected builder process state: {state:?}");
-            Ok(255)
-        }
-        Err(err) => {
-            eprintln!("Error waiting for the builder process: {err}");
-            Ok(255)
-        }
+        Ok(wait::WaitStatus::Signaled(_, signal, core_dumped)) => Err(format!(
+            "Sandboxed process killed by signal {signal} (core dumped: {core_dumped})"
+        )),
+        Ok(state) => Err(format!(
+            "Unexpected state of the sanboxed process: {state:?}"
+        )),
+        Err(err) => Err(format!("Error waiting for the sandboxed process: {err}")),
     }
 }
 
