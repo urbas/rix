@@ -50,9 +50,9 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
     let mut out_src = format!("import nixrt from '{nixrt_js_module}';\n");
     out_src += "export const __nixrt = nixrt;\n";
-    out_src += "export const __nixValue = (evalCtx) => {return ";
+    out_src += "export const __nixValue = (evalCtx) => ";
     emit_expr(&root_expr, &mut out_src)?;
-    out_src += ";};\n";
+    out_src += ";\n";
     Ok(out_src)
 }
 
