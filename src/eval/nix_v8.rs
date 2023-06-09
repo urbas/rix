@@ -97,11 +97,7 @@ fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_attrset(attrset: &ast::AttrSet, out_src: &mut String) -> Result<(), String> {
-    if attrset.rec_token().is_some() {
-        todo!("recursive attrset")
-    }
-    emit_has_entry(attrset, false, out_src)?;
-    Ok(())
+    emit_has_entry(attrset, attrset.rec_token().is_some(), out_src)
 }
 
 fn emit_has_entry(
@@ -1108,5 +1104,10 @@ mod tests {
     #[test]
     fn test_eval_recursive_let() {
         assert_eq!(eval_ok("let a = 1; b = a + 1; in b"), Value::Int(2));
+    }
+
+    #[test]
+    fn test_eval_recursive_attrset() {
+        assert_eq!(eval_ok("rec { a = 1; b = a + 1; }.b"), Value::Int(2));
     }
 }
