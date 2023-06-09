@@ -6,17 +6,28 @@ A reimplementation of `nix` in Rust.
 
 # Trying it out
 
-Currently `rix` is not published anywhere, so you'll have to build it yourself. Please follow instructions in [`CONTRIBUTE.md`](./CONTRIBUTE.md) on how to build and run `rix`.
+Currently `rix` is not published anywhere, so you'll have to build it yourself.
+Please follow instructions in [`CONTRIBUTE.md`](./CONTRIBUTE.md) on how to build
+and run `rix`.
 
-Keep in mind that `rix` is still in development and many features are not yet implemented.
+Keep in mind that `rix` is still in development and many features are not yet
+implemented.
 
 # Notable design choices
 
-1. Nix expressions are **transpiled to JavaScript and evaluated with V8**. The idea is to leverage all the great work around the JS ecosystem (such as debuggers, fast JIT compilers, profilers, libraries, compiled code caching, just to name a few) and allow people to write their Nix expressions in JS too.
+1. Nix expressions are **transpiled to JavaScript and evaluated with V8**. The
+   idea is to leverage all the great work around the JS ecosystem (such as
+   debuggers, fast JIT compilers, profilers, libraries, compiled code caching,
+   just to name a few) and allow people to write their Nix expressions in JS
+   too.
 
-2. Use plain-old files and directories to store metadata (instead of a central SQLite database). The idea is to avoid the central choke-point and be more transparent (allow users to browse the store's metadata without having to learn about SQLite).
+2. Use plain-old files and directories to store metadata (instead of a central
+   SQLite database). The idea is to have trully immutable stores, composable
+   stores, avoid the central sqlite choke-point, and be more transparent (allow
+   users to browse the store's metadata without having to learn about SQLite).
 
-3. Shard directories that contain huge amounts of hash-prefixed files (i.e., use paths like `/nix/store/ca/fe/xxzzxjyhvbll1c7bkswwy36nlafx-foo-1.2.3`).
+3. Shard directories that contain huge amounts of hash-prefixed files (i.e., use
+   paths like `/nix/store/ca/fe/xxzzxjyhvbll1c7bkswwy36nlafx-foo-1.2.3`).
 
 # Progress
 
@@ -29,18 +40,23 @@ Keep in mind that `rix` is still in development and many features are not yet im
   - 🌗 stage 2: builds derivations with dependencies.
     - TODO: prevent internet access.
   - 🌑 stage 3: builds fixed derivations (with internet access).
-  - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies are present).
+  - 🌑 stage 4: builds X% of derivations in `nixpkgs` (assuming all dependencies
+    are present).
 
-- `transpile`: converts the given nix expression into JavaScript and prints it to stdout.
+- `transpile`: converts the given nix expression into JavaScript and prints it
+  to stdout.
 
 ## Nix sub-commands
 
 - 🌘 `eval`
 
-  - 🌘 stage 0: evaluate basic expressions, rec attrsets, let bindings, `with` statement, functions
-  - 🌑 stage 1 (MVP): lazy evaluation, imports, error messages
-  - 🌑 stage 2: most built-in functions, common use cases (hello world derivation)
-  - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error messages, etc.)
+  - 🌕 stage 0: evaluate basic expressions, rec attrsets, let bindings, `with`
+    statement, functions
+  - 🌘 stage 1 (MVP): lazy evaluation 🌗, imports 🌑, error messages 🌘
+  - 🌑 stage 2: most built-in functions, common use cases (hello world
+    derivation)
+  - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error
+    messages, etc.)
 
 - 🌘 `show-derivation`
 

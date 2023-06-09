@@ -16,13 +16,13 @@ cargo --version
 ```
 
 Rix uses `nixrt` (a JavaScript library), which it loads from the location
-specified in the `RIX_NIXRT_JS_MODULE` environment variable. `direnv` makes
-sure that this environment variable is set up correctly.
+specified in the `RIX_NIXRT_JS_MODULE` environment variable. `direnv` makes sure
+that this environment variable is set up correctly.
 
 ## Editor
 
-You must follow the "Shell" instructions above to make sure the `.direnv`
-folder is populated. After that all the needed tooling will be in the `PATH`.
+You must follow the "Shell" instructions above to make sure the `.direnv` folder
+is populated. After that all the needed tooling will be in the `PATH`.
 
 Your editor should pick up the Rust toolchain as specified in
 `rust-toolchain.toml`.
@@ -46,21 +46,24 @@ cargo run -- eval --expr '1 + 1'
 
 ## Updating dependencies
 
-Update the `nix` tool, the `nixrt` library, `rustup`, and dependencies used in integration tests:
+Update the `nix` tool, the `nixrt` library, `rustup`, and dependencies used in
+integration tests:
 
 ```bash
 nix flake update
 ```
 
 Update the version of Rust:
+
 1. find the latest version on https://www.rust-lang.org/
-2. Replace the old version of rust in [`rust-toolchain.toml`](./rust-toolchain.toml) with the new version.
+2. Replace the old version of rust in
+   [`rust-toolchain.toml`](./rust-toolchain.toml) with the new version.
 
 Update Rust dependencies:
+
 ```bash
 cargo update
 ```
-
 
 # Troubleshooting
 
