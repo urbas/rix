@@ -17,7 +17,7 @@ cargo --version
 
 Rix uses `nixrt` (a JavaScript library), which it loads from the location
 specified in the `RIX_NIXRT_JS_MODULE` environment variable. `direnv` makes sure
-that this environment variable is set up correctly.
+that this environment variable is set correctly.
 
 ## Editor
 
