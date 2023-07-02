@@ -48,9 +48,9 @@ pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
     let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
-    let mut out_src = format!("import nixrt from '{nixrt_js_module}';\n");
-    out_src += "export const __nixrt = nixrt;\n";
-    out_src += "export const __nixValue = (evalCtx) => ";
+    let mut out_src = format!("import n from '{nixrt_js_module}';\n");
+    out_src += "export const __nixrt = n;\n";
+    out_src += "export const __nixValue = (ctx) => ";
     emit_expr(&root_expr, &mut out_src)?;
     out_src += ";\n";
     Ok(out_src)
@@ -105,19 +105,19 @@ fn emit_has_entry(
     is_recursive: bool,
     out_src: &mut String,
 ) -> Result<(), String> {
-    *out_src += "nixrt.";
+    *out_src += "n.";
     *out_src += if is_recursive {
-        "recursiveAttrset"
+        "recAttrset"
     } else {
         "attrset"
     };
-    *out_src += "(evalCtx,[";
+    *out_src += "(ctx,[";
     for attrpath_value in has_entry.attrpath_values() {
         *out_src += "[";
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
-        emit_attrpath(&attrpath, out_src)?;
-        *out_src += ",(evalCtx) => ";
+        emit_attrpath_lazy(&attrpath, out_src)?;
+        *out_src += ",(ctx) => ";
         emit_expr(value, out_src)?;
         *out_src += "],";
     }
@@ -125,14 +125,32 @@ fn emit_has_entry(
     Ok(())
 }
 
+fn emit_attrpath_lazy(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
+    *out_src += "[";
+    for attr in attrpath.attrs() {
+        *out_src += "(ctx) => ";
+        match attr {
+            ast::Attr::Ident(ident) => emit_nix_string(
+                ident.ident_token().expect("Missing ident token.").text(),
+                out_src,
+            ),
+            ast::Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
+            ast::Attr::Dynamic(expr) => {
+                emit_expr(&expr.expr().expect("Expected an expression."), out_src)?
+            }
+        }
+        *out_src += ",";
+    }
+    *out_src += "]";
+    Ok(())
+}
+
 fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.attrpath(";
+    *out_src += "[";
     for attr in attrpath.attrs() {
         match attr {
             ast::Attr::Ident(ident) => {
-                *out_src += "\"";
-                *out_src += ident.ident_token().expect("Not implemented").text();
-                *out_src += "\"";
+                emit_nix_string(ident.ident_token().expect("Missing token.").text(), out_src)
             }
             ast::Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
             ast::Attr::Dynamic(expr) => {
@@ -141,8 +159,14 @@ fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), S
         }
         *out_src += ",";
     }
-    *out_src += ")";
+    *out_src += "]";
     Ok(())
+}
+
+fn emit_nix_string(string: &str, out_src: &mut String) {
+    *out_src += "new n.NixString(\"";
+    *out_src += string;
+    *out_src += "\")";
 }
 
 fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> {
@@ -151,39 +175,31 @@ fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> 
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
         // Arithmetic
-        ast::BinOpKind::Add => emit_add_bin_op(lhs, rhs, out_src)?,
-        ast::BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "nixrt.div", out_src)?,
-        ast::BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "nixrt.mul", out_src)?,
-        ast::BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "nixrt.sub", out_src)?,
+        // ast::BinOpKind::Add => emit_add_bin_op(lhs, rhs, out_src)?,
+        ast::BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "add", out_src)?,
+        ast::BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "div", out_src)?,
+        ast::BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "mul", out_src)?,
+        ast::BinOpKind::Sub => emit_nixrt_bin_op(lhs, rhs, "sub", out_src)?,
 
         // Attrset
-        ast::BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "nixrt.update", out_src)?,
+        ast::BinOpKind::Update => emit_nixrt_bin_op(lhs, rhs, "update", out_src)?,
 
         // Boolean
-        ast::BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "nixrt.and", out_src)?,
-        ast::BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "nixrt.implication", out_src)?,
-        ast::BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "nixrt.or", out_src)?,
+        ast::BinOpKind::And => emit_nixrt_bin_op(lhs, rhs, "and", out_src)?,
+        ast::BinOpKind::Implication => emit_nixrt_bin_op(lhs, rhs, "implication", out_src)?,
+        ast::BinOpKind::Or => emit_nixrt_bin_op(lhs, rhs, "or", out_src)?,
 
         // Comparison
-        ast::BinOpKind::Equal => emit_nixrt_bin_op(lhs, rhs, "nixrt.eq", out_src)?,
-        ast::BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "nixrt.less", out_src)?,
-        ast::BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.less_eq", out_src)?,
-        ast::BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "nixrt.more", out_src)?,
-        ast::BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "nixrt.more_eq", out_src)?,
-        ast::BinOpKind::NotEqual => emit_nixrt_bin_op(lhs, rhs, "nixrt.neq", out_src)?,
+        ast::BinOpKind::Equal => emit_nixrt_bin_op(lhs, rhs, "eq", out_src)?,
+        ast::BinOpKind::Less => emit_nixrt_bin_op(lhs, rhs, "less", out_src)?,
+        ast::BinOpKind::LessOrEq => emit_nixrt_bin_op(lhs, rhs, "lessEq", out_src)?,
+        ast::BinOpKind::More => emit_nixrt_bin_op(lhs, rhs, "more", out_src)?,
+        ast::BinOpKind::MoreOrEq => emit_nixrt_bin_op(lhs, rhs, "moreEq", out_src)?,
+        ast::BinOpKind::NotEqual => emit_nixrt_bin_op(lhs, rhs, "neq", out_src)?,
 
         // List
-        ast::BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "nixrt.concat", out_src)?,
+        ast::BinOpKind::Concat => emit_nixrt_bin_op(lhs, rhs, "concat", out_src)?,
     }
-    Ok(())
-}
-
-fn emit_add_bin_op(lhs: &ast::Expr, rhs: &ast::Expr, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.add(evalCtx,";
-    emit_expr(lhs, out_src)?;
-    *out_src += ",";
-    emit_expr(rhs, out_src)?;
-    *out_src += ")";
     Ok(())
 }
 
@@ -193,12 +209,12 @@ fn emit_nixrt_bin_op(
     nixrt_function: &str,
     out_src: &mut String,
 ) -> Result<(), String> {
-    *out_src += nixrt_function;
-    *out_src += "(";
     emit_expr(lhs, out_src)?;
-    *out_src += ",";
+    out_src.push('.');
+    *out_src += nixrt_function;
+    out_src.push('(');
     emit_expr(rhs, out_src)?;
-    *out_src += ")";
+    out_src.push(')');
     Ok(())
 }
 
@@ -206,9 +222,11 @@ fn emit_ident(ident: &ast::Ident, out_src: &mut String) -> Result<(), String> {
     let token = ident.ident_token().expect("Unexpected ident without name.");
     let token_text = token.text();
     match token_text {
-        "true" | "false" | "null" => out_src.push_str(token_text),
+        "true" => out_src.push_str("n.TRUE"),
+        "false" => out_src.push_str("n.FALSE"),
+        "null" => out_src.push_str("n.NULL"),
         _ => {
-            out_src.push_str("evalCtx.lookup(\"");
+            out_src.push_str("ctx.lookup(\"");
             js_string_escape_into(token_text, out_src);
             out_src.push_str("\")");
         }
@@ -217,9 +235,8 @@ fn emit_ident(ident: &ast::Ident, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_has_attr(has_attr: &ast::HasAttr, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.has(";
     emit_expr(&has_attr.expr().expect("Unreachable"), out_src)?;
-    *out_src += ",";
+    *out_src += ".has(";
     emit_attrpath(&has_attr.attrpath().expect("Unreachable"), out_src)?;
     *out_src += ")";
     Ok(())
@@ -235,9 +252,8 @@ fn emit_if_else(lambda: &ast::IfElse, out_src: &mut String) -> Result<(), String
     let else_body = lambda
         .else_body()
         .expect("Unexpected 'if-then-else' expression without an 'else' body.");
-    *out_src += "nixrt.asBoolean(";
     emit_expr(&condition, out_src)?;
-    *out_src += ") ? (";
+    *out_src += ".asBoolean() ? (";
     emit_expr(&body, out_src)?;
     *out_src += ") : (";
     emit_expr(&else_body, out_src)?;
@@ -263,14 +279,14 @@ fn emit_param_lambda(
     body: &ast::Expr,
     out_src: &mut String,
 ) -> Result<(), String> {
-    *out_src += "nixrt.paramLambda(evalCtx,";
+    *out_src += "n.paramLambda(ctx,";
     emit_ident_as_js_string(
         &ident_param
             .ident()
             .expect("Unexpected missing lambda parameter identifier."),
         out_src,
     );
-    *out_src += ",(evalCtx) => ";
+    *out_src += ",(ctx) => ";
     emit_expr(body, out_src)?;
     *out_src += ")";
     Ok(())
@@ -282,7 +298,7 @@ fn emit_pattern_lambda(
     out_src: &mut String,
 ) -> Result<(), String> {
     let mut formal_arg_names = HashSet::new();
-    *out_src += "nixrt.patternLambda(evalCtx,";
+    *out_src += "n.patternLambda(ctx,";
     if let Some(indent) = pattern.pat_bind().and_then(|pat_bind| pat_bind.ident()) {
         formal_arg_names.insert(indent.to_string());
         emit_ident_as_js_string(&indent, out_src);
@@ -305,7 +321,7 @@ fn emit_pattern_lambda(
         }
         *out_src += "],";
     }
-    *out_src += "],(evalCtx) => ";
+    *out_src += "],(ctx) => ";
     emit_expr(body, out_src)?;
     *out_src += ")";
     Ok(())
@@ -318,9 +334,9 @@ fn emit_ident_as_js_string(ident: &ast::Ident, out_src: &mut String) {
 }
 
 fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.letIn(evalCtx,";
+    *out_src += "n.letIn(ctx,";
     emit_has_entry(let_in, true, out_src)?;
-    *out_src += ",(evalCtx) => ";
+    *out_src += ",(ctx) => ";
     emit_expr(
         &let_in
             .body()
@@ -332,25 +348,29 @@ fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> 
 }
 
 fn emit_list(list: &ast::List, out_src: &mut String) -> Result<(), String> {
-    *out_src += "[";
+    *out_src += "new n.NixList([";
     for element in list.items() {
         emit_expr(&element, out_src)?;
         *out_src += ",";
     }
-    *out_src += "]";
+    *out_src += "])";
     Ok(())
 }
 
 fn emit_literal(literal: &ast::Literal, out_src: &mut String) -> Result<(), String> {
     let token = literal.syntax().first_token().expect("Not implemented");
     match token.kind() {
-        SyntaxKind::TOKEN_INTEGER => *out_src += &format!("new nixrt.NixInt({}n)", token.text()),
-        SyntaxKind::TOKEN_FLOAT => *out_src += token.text(),
-        SyntaxKind::TOKEN_URI => {
-            out_src.push('`');
-            js_string_escape_into(token.text(), out_src);
-            out_src.push('`');
+        SyntaxKind::TOKEN_INTEGER => {
+            out_src.push_str("new n.NixInt(");
+            out_src.push_str(token.text());
+            out_src.push_str("n)");
         }
+        SyntaxKind::TOKEN_FLOAT => {
+            out_src.push_str("new n.NixFloat(");
+            out_src.push_str(token.text());
+            out_src.push(')');
+        }
+        SyntaxKind::TOKEN_URI => emit_nix_string(token.text(), out_src),
         _ => todo!("emit_literal: {:?} token kind: {:?}", literal, token.kind()),
     }
     Ok(())
@@ -367,16 +387,15 @@ fn emit_paren(paren: &ast::Paren, out_src: &mut String) -> Result<(), String> {
 }
 
 fn emit_path(path: &ast::Path, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.toPath(evalCtx,`";
+    *out_src += "n.toPath(ctx,`";
     js_string_escape_into(&path.to_string(), out_src);
     *out_src += "`)";
     Ok(())
 }
 
 fn emit_select_expr(select: &ast::Select, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.select(";
     emit_expr(&select.expr().expect("Unreachable"), out_src)?;
-    *out_src += ",";
+    *out_src += ".select(";
     emit_attrpath(&select.attrpath().expect("Unreachable"), out_src)?;
     *out_src += ",";
     match select.default_expr() {
@@ -388,25 +407,25 @@ fn emit_select_expr(select: &ast::Select, out_src: &mut String) -> Result<(), St
 }
 
 fn emit_string_expr(string: &ast::Str, out_src: &mut String) -> Result<(), String> {
-    *out_src += "`";
+    *out_src += "new n.NixString(`";
     for string_part in string.normalized_parts() {
         match string_part {
             ast::InterpolPart::Literal(literal) => {
                 js_string_escape_into(&literal, out_src);
             }
             ast::InterpolPart::Interpolation(interpolation_body) => {
-                *out_src += "${nixrt.interpolate(";
+                *out_src += "${";
                 emit_expr(
                     &interpolation_body
                         .expr()
                         .expect("String interpolation body missing."),
                     out_src,
                 )?;
-                *out_src += ")}";
+                *out_src += ".asString()}";
             }
         }
     }
-    *out_src += "`";
+    *out_src += "`)";
     Ok(())
 }
 
@@ -434,8 +453,8 @@ fn emit_unary_op_kind(
     out_src: &mut String,
 ) -> Result<(), String> {
     match operator {
-        ast::UnaryOpKind::Invert => emit_nixrt_unary_op(operand, "nixrt.invert", out_src),
-        ast::UnaryOpKind::Negate => emit_nixrt_unary_op(operand, "nixrt.neg", out_src),
+        ast::UnaryOpKind::Invert => emit_nixrt_unary_op(operand, "invert", out_src),
+        ast::UnaryOpKind::Negate => emit_nixrt_unary_op(operand, "neg", out_src),
     }
 }
 
@@ -444,22 +463,22 @@ fn emit_nixrt_unary_op(
     nixrt_function: &str,
     out_src: &mut String,
 ) -> Result<(), String> {
-    *out_src += nixrt_function;
-    *out_src += "(";
     emit_expr(operand, out_src)?;
-    *out_src += ")";
+    out_src.push('.');
+    *out_src += nixrt_function;
+    *out_src += "()";
     Ok(())
 }
 
 fn emit_with(with: &ast::With, out_src: &mut String) -> Result<(), String> {
-    *out_src += "nixrt.withExpr(evalCtx,";
+    *out_src += "n.withExpr(ctx,";
     emit_expr(
         &with
             .namespace()
             .ok_or_else(|| "Unexpected 'with' expression without a namespace.".to_string())?,
         out_src,
     )?;
-    *out_src += ",(evalCtx) => ";
+    *out_src += ",(ctx) => ";
     emit_expr(
         &with
             .body()
@@ -498,7 +517,7 @@ fn nix_value_from_module(
     let to_strict_fn: v8::Local<v8::Function> = try_get_js_object_key(scope, &nixrt, "toStrict")?
         .expect("Could not find the function `toStrict` in `nixrt`.")
         .try_into()
-        .expect("`nixrt.toStrict` is not a function.");
+        .expect("`n.toStrict` is not a function.");
     let strict_nix_value = call_js_function(scope, &to_strict_fn, &[nix_value])?;
 
     js_value_to_nix(scope, &nixrt, &strict_nix_value)
@@ -556,42 +575,40 @@ fn js_value_to_nix(
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
 ) -> EvalResult {
-    if js_value.is_boolean() {
-        return Ok(Value::Bool(js_value.is_true()));
-    }
-    if js_value.is_number() {
-        let number = js_value
-            .to_number(scope)
-            .unwrap()
-            .number_value(scope)
-            .unwrap();
-        return Ok(Value::Float(number));
-    }
     if js_value.is_function() {
         return Ok(Value::Lambda);
     }
-    if let Some(value) = js_value_as_nix_int(scope, nixrt, js_value)? {
+    if let Some(value) = from_js_attrset(scope, nixrt, js_value)? {
         return Ok(value);
     }
-    if let Some(value) = js_value_as_nix_string(scope, js_value) {
+    if let Some(value) = from_js_string(scope, nixrt, js_value)? {
         return Ok(value);
     }
-    if let Some(value) = js_value_as_nix_array(scope, nixrt, js_value) {
-        return value;
+    if let Some(value) = from_js_lazy(scope, nixrt, js_value)? {
+        return Ok(value);
     }
-    if let Some(value) = js_value_as_attrset(scope, nixrt, js_value) {
-        return value;
+    if let Some(value) = from_js_int(scope, nixrt, js_value)? {
+        return Ok(value);
     }
-    if let Some(value) = js_value_as_nix_path(scope, nixrt, js_value)? {
+    if let Some(value) = from_js_bool(scope, nixrt, js_value)? {
+        return Ok(value);
+    }
+    if let Some(value) = from_js_float(scope, nixrt, js_value)? {
+        return Ok(value);
+    }
+    if let Some(value) = from_js_list(scope, nixrt, js_value)? {
+        return Ok(value);
+    }
+    if let Some(value) = from_js_path(scope, nixrt, js_value)? {
         return Ok(value);
     }
     todo!(
         "js_value_to_nix: {:?}",
-        js_value.to_rust_string_lossy(scope)
+        js_value.to_rust_string_lossy(scope),
     )
 }
 
-fn js_value_as_nix_int(
+fn from_js_int(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
@@ -604,6 +621,140 @@ fn js_value_as_nix_int(
             format!("Expected an int64 value. Internal conversion error: {err:?}")
         })?;
         return Ok(Some(Value::Int(big_int_value.i64_value().0)));
+    }
+    Ok(None)
+}
+
+fn from_js_string(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "NixString")? {
+        let Some(value) = try_get_js_object_key(scope, js_value, "value")? else {
+            return Ok(None);
+        };
+        let value_js_string: v8::Local<v8::String> = value.try_into().map_err(|err| {
+            format!("Expected a string value. Internal conversion error: {err:?}")
+        })?;
+        return Ok(Some(Value::Str(
+            value_js_string.to_rust_string_lossy(scope),
+        )));
+    }
+    Ok(None)
+}
+
+fn from_js_lazy(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "Lazy")? {
+        let to_strict = try_get_js_object_key(scope, js_value, "toStrict")?.ok_or_else(|| {
+            "Internal error: could not find the `toStrict` method on the Lazy object.".to_string()
+        })?;
+        let to_strict_method: v8::Local<v8::Function> = to_strict.try_into().map_err(|err| {
+            format!(
+                "Expected `toStrict` to be a method on the Lazy object. Internal conversion error: {err:?}"
+            )
+        })?;
+        let strict_value = to_strict_method
+            .call(scope, *js_value, &[])
+            .ok_or_else(|| "Could not convert the lazy value to strict.".to_string())?;
+        return Ok(Some(js_value_to_nix(scope, nixrt, &strict_value)?));
+    }
+    Ok(None)
+}
+
+fn from_js_bool(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "NixBool")? {
+        let value = try_get_js_object_key(scope, js_value, "value")?.ok_or_else(|| {
+            "Internal error: could not find the `value` property on the NixBool object.".to_string()
+        })?;
+        let value_as_bool: v8::Local<v8::Boolean> = value.try_into().map_err(|err| {
+            format!(
+                "Expected `value` to be a boolean on the NixBool object. Internal conversion error: {err:?}"
+            )
+        })?;
+        return Ok(Some(Value::Bool(value_as_bool.boolean_value(scope))));
+    }
+    Ok(None)
+}
+
+fn from_js_float(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "NixFloat")? {
+        let value = try_get_js_object_key(scope, js_value, "value")?.ok_or_else(|| {
+            "Internal error: could not find the `value` property on the NixFloat object."
+                .to_string()
+        })?;
+        let value_as_number: v8::Local<v8::Number> = value.try_into().map_err(|err| {
+            format!(
+                "Expected `value` to be a number on the NixFloat object. Internal conversion error: {err:?}"
+            )
+        })?;
+        return Ok(Some(Value::Float(
+            value_as_number.number_value(scope).ok_or_else(|| {
+                "Could not convert the JavaScript number to a floating point number.".to_string()
+            })?,
+        )));
+    }
+    Ok(None)
+}
+
+fn from_js_attrset(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "Attrset")? {
+        let underlying_map_value = try_get_js_object_key(scope, js_value, "underlyingMap")?
+            .ok_or_else(|| {
+                "Internal error: could not find the `underlyingMap` method on the Attrset object."
+                    .to_string()
+            })?;
+        let underlying_map_function: v8::Local<v8::Function> = underlying_map_value.try_into().map_err(|err| {
+            format!(
+                "Expected `underlyingMap` to be a method on the Attrset object. Internal conversion error: {err:?}"
+            )
+        })?;
+        let underlying_map: v8::Local<v8::Map> = underlying_map_function
+            .call(scope, *js_value, &[])
+            .ok_or_else(|| "Could not get the underlying map of the Attrset.".to_string())?
+            .try_into()
+            .map_err(|err| {
+                format!(
+                    "Expected `underlyingMap` to return a Map. Internal conversion error: {err:?}"
+                )
+            })?;
+        return Ok(Some(js_map_as_attrset(scope, nixrt, &underlying_map)?));
+    }
+    Ok(None)
+}
+
+fn from_js_list(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if is_nixrt_type(scope, nixrt, js_value, "NixList")? {
+        let value = try_get_js_object_key(scope, js_value, "values")?.ok_or_else(|| {
+            "Internal error: could not find the `values` property on the NixList object."
+                .to_string()
+        })?;
+        let value_as_array: v8::Local<v8::Array> = value.try_into().map_err(|err| {
+            format!(
+                "Expected `values` to be an array in the NixList object. Internal conversion error: {err:?}"
+            )
+        })?;
+        return Ok(Some(js_value_as_nix_array(scope, nixrt, &value_as_array)?));
     }
     Ok(None)
 }
@@ -632,50 +783,30 @@ fn is_nixrt_type(
     let nixrt_type = get_nixrt_type(scope, nixrt, type_name)?;
     js_value.instance_of(scope, nixrt_type).ok_or_else(|| {
         format!(
-            "Failed to check whether value '{}' is 'nixrt.{type_name}'.",
+            "Failed to check whether value '{}' is '{type_name}'.",
             js_value.to_rust_string_lossy(scope)
         )
     })
 }
 
-fn js_value_as_nix_string(
-    scope: &mut v8::HandleScope<'_>,
-    js_value: &v8::Local<v8::Value>,
-) -> Option<Value> {
-    if js_value.is_string() {
-        let string = js_value
-            .to_string(scope)
-            .unwrap()
-            .to_rust_string_lossy(scope);
-        return Some(Value::Str(string));
-    }
-    None
-}
-
 fn js_value_as_nix_array(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
-    js_value: &v8::Local<v8::Value>,
-) -> Option<EvalResult> {
-    let js_array: Result<v8::Local<v8::Array>, _> = (*js_value).try_into();
-    match js_array {
-        Ok(js_array) => {
-            let length = js_array.length();
-            let mut rust_array = Vec::with_capacity(length as usize);
-            for idx in 0..length {
-                let js_element = js_array.get_index(scope, idx).unwrap();
-                match js_value_to_nix(scope, nixrt, &js_element) {
-                    Ok(value) => rust_array.push(value),
-                    err => return Some(err),
-                }
-            }
-            Some(Ok(Value::List(rust_array)))
+    js_array: &v8::Local<v8::Array>,
+) -> EvalResult {
+    let length = js_array.length();
+    let mut rust_array = Vec::with_capacity(length as usize);
+    for idx in 0..length {
+        let js_element = js_array.get_index(scope, idx).unwrap();
+        match js_value_to_nix(scope, nixrt, &js_element) {
+            Ok(value) => rust_array.push(value),
+            err => return err,
         }
-        Err(_) => None,
     }
+    Ok(Value::List(rust_array))
 }
 
-fn js_value_as_nix_path(
+fn from_js_path(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
@@ -699,18 +830,6 @@ fn try_get_js_object_key<'s>(
         .ok_or_else(|| "Not an object.".to_owned())?;
     let key_js_str = v8::String::new(scope, key).unwrap();
     Ok(js_object.get(scope, key_js_str.into()))
-}
-
-fn js_value_as_attrset(
-    scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
-    js_value: &v8::Local<v8::Value>,
-) -> Option<EvalResult> {
-    let js_map: Result<v8::Local<v8::Map>, _> = (*js_value).try_into();
-    match js_map {
-        Ok(js_map) => Some(js_map_as_attrset(scope, nixrt, &js_map)),
-        Err(_) => None,
-    }
 }
 
 fn js_map_as_attrset(
@@ -1109,5 +1228,6 @@ mod tests {
     #[test]
     fn test_eval_recursive_attrset() {
         assert_eq!(eval_ok("rec { a = 1; b = a + 1; }.b"), Value::Int(2));
+        assert_eq!(eval_ok(r#"rec { a = "b"; ${a} = 1; }.b"#), Value::Int(1));
     }
 }
