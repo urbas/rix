@@ -111,15 +111,15 @@ fn emit_has_entry(
     } else {
         "attrset"
     };
-    *out_src += "(ctx,[";
+    *out_src += "(ctx,(ctx) => [";
     for attrpath_value in has_entry.attrpath_values() {
-        *out_src += "[(ctx) => ";
+        out_src.push('[');
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
         emit_attrpath(&attrpath, out_src)?;
-        *out_src += ",(ctx) => ";
+        *out_src += ",new n.Lazy(ctx,(ctx) => ";
         emit_expr(value, out_src)?;
-        *out_src += "],";
+        *out_src += ")],";
     }
     *out_src += "])";
     Ok(())
@@ -128,7 +128,7 @@ fn emit_has_entry(
 fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
     *out_src += "[";
     for attr in attrpath.attrs() {
-        out_src.push_str("new n.Lazy(ctx, (ctx) =>");
+        out_src.push_str("new n.Lazy(ctx,(ctx) =>");
         match attr {
             ast::Attr::Ident(ident) => {
                 emit_nix_string(ident.ident_token().expect("Missing token.").text(), out_src)
