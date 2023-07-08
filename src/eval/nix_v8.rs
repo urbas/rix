@@ -113,10 +113,10 @@ fn emit_has_entry(
     };
     *out_src += "(ctx,[";
     for attrpath_value in has_entry.attrpath_values() {
-        *out_src += "[";
+        *out_src += "[(ctx) => ";
         let attrpath = attrpath_value.attrpath().expect("Not implemented");
         let value = &attrpath_value.value().expect("Not implemented");
-        emit_attrpath_lazy(&attrpath, out_src)?;
+        emit_attrpath(&attrpath, out_src)?;
         *out_src += ",(ctx) => ";
         emit_expr(value, out_src)?;
         *out_src += "],";
@@ -125,29 +125,10 @@ fn emit_has_entry(
     Ok(())
 }
 
-fn emit_attrpath_lazy(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
-    *out_src += "[";
-    for attr in attrpath.attrs() {
-        *out_src += "(ctx) => ";
-        match attr {
-            ast::Attr::Ident(ident) => emit_nix_string(
-                ident.ident_token().expect("Missing ident token.").text(),
-                out_src,
-            ),
-            ast::Attr::Str(str_expression) => emit_string_expr(&str_expression, out_src)?,
-            ast::Attr::Dynamic(expr) => {
-                emit_expr(&expr.expr().expect("Expected an expression."), out_src)?
-            }
-        }
-        *out_src += ",";
-    }
-    *out_src += "]";
-    Ok(())
-}
-
 fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), String> {
     *out_src += "[";
     for attr in attrpath.attrs() {
+        out_src.push_str("new n.Lazy(ctx, (ctx) =>");
         match attr {
             ast::Attr::Ident(ident) => {
                 emit_nix_string(ident.ident_token().expect("Missing token.").text(), out_src)
@@ -157,7 +138,7 @@ fn emit_attrpath(attrpath: &ast::Attrpath, out_src: &mut String) -> Result<(), S
                 emit_expr(&expr.expr().expect("Expected an expression."), out_src)?
             }
         }
-        *out_src += ",";
+        out_src.push_str("),");
     }
     *out_src += "]";
     Ok(())
