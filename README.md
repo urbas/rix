@@ -51,8 +51,7 @@ implemented.
 
   - 🌕 stage 0: evaluate basic expressions, rec attrsets, let bindings, `with`
     statement, functions
-  - 🌖 stage 1:
-    - 🌖 lazy evaluation (missing: lazy evaluation in lists)
+  - 🌕 stage 1: lazy evaluation
   - 🌘 stage 2:
     - 🌘 built-in functions (progress: 1 out of 111)
     - 🌑 derivations (hello world derivation)

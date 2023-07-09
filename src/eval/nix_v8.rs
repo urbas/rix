@@ -331,8 +331,9 @@ fn emit_let_in(let_in: &ast::LetIn, out_src: &mut String) -> Result<(), String> 
 fn emit_list(list: &ast::List, out_src: &mut String) -> Result<(), String> {
     *out_src += "new n.NixList([";
     for element in list.items() {
+        out_src.push_str("new n.Lazy(ctx,(ctx) => ");
         emit_expr(&element, out_src)?;
-        *out_src += ",";
+        out_src.push_str("),");
     }
     *out_src += "])";
     Ok(())
@@ -1229,5 +1230,10 @@ mod tests {
     #[test]
     fn test_eval_builtin_head() {
         assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
+    }
+
+    #[test]
+    fn test_eval_lists_are_lazy() {
+        assert_eq!(eval_ok("builtins.head [ 1 (1 / 0) ]"), Value::Int(1));
     }
 }
