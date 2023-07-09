@@ -15,11 +15,10 @@ implemented.
 
 # Notable design choices
 
-1. Nix expressions are **transpiled to JavaScript and evaluated with V8**. The
-   idea is to leverage all the great work around the JS ecosystem (such as
-   debuggers, fast JIT compilers, profilers, libraries, compiled code caching,
-   just to name a few) and allow people to write their Nix expressions in JS
-   too.
+1. Nix expressions are transpiled to JavaScript and evaluated with V8. The idea
+   is to leverage all the great work around the JS ecosystem (such as debuggers,
+   fast JIT compilers, profilers, libraries, compiled code caching, source
+   mapping, just to name a few).
 
 2. Use plain-old files and directories to store metadata (instead of a central
    SQLite database). The idea is to have trully immutable stores, composable
