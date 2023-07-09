@@ -85,7 +85,7 @@ fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
             .expect("Unexpected lambda application without the lambda."),
         out_src,
     )?;
-    out_src.push('(');
+    out_src.push_str(".apply(");
     emit_expr(
         &apply
             .argument()
@@ -583,6 +583,9 @@ fn js_value_to_nix(
     if let Some(value) = from_js_path(scope, nixrt, js_value)? {
         return Ok(value);
     }
+    if let Some(value) = from_js_lambda(scope, nixrt, js_value)? {
+        return Ok(value);
+    }
     todo!(
         "js_value_to_nix: {:?}",
         js_value.to_rust_string_lossy(scope),
@@ -799,6 +802,17 @@ fn from_js_path(
         return Ok(None);
     };
     Ok(Some(Value::Path(path.to_rust_string_lossy(scope))))
+}
+
+fn from_js_lambda(
+    scope: &mut v8::HandleScope<'_>,
+    nixrt: &v8::Local<v8::Value>,
+    js_value: &v8::Local<v8::Value>,
+) -> Result<Option<Value>, String> {
+    if !is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
+        return Ok(None);
+    }
+    Ok(Some(Value::Lambda))
 }
 
 fn try_get_js_object_key<'s>(
@@ -1210,5 +1224,10 @@ mod tests {
     fn test_eval_recursive_attrset() {
         assert_eq!(eval_ok("rec { a = 1; b = a + 1; }.b"), Value::Int(2));
         assert_eq!(eval_ok(r#"rec { a = "b"; ${a} = 1; }.b"#), Value::Int(1));
+    }
+
+    #[test]
+    fn test_eval_builtin_head() {
+        assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
     }
 }

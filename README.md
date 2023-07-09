@@ -51,11 +51,11 @@ implemented.
 
   - 🌕 stage 0: evaluate basic expressions, rec attrsets, let bindings, `with`
     statement, functions
-  - 🌘 stage 1 (MVP):
+  - 🌖 stage 1:
     - 🌖 lazy evaluation (missing: lazy evaluation in lists)
-    - 🌑 imports
-  - 🌑 stage 2: most built-in functions, common use cases (hello world
-    derivation)
+  - 🌘 stage 2:
+    - 🌘 built-in functions (progress: 1 out of 111)
+    - 🌑 derivations (hello world derivation)
   - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error
     messages, etc.)
 
