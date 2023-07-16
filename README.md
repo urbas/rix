@@ -53,7 +53,7 @@ implemented.
     statement, functions
   - 🌕 stage 1: lazy evaluation
   - 🌘 stage 2:
-    - 🌘 built-in functions (progress: 1 out of 111)
+    - 🌘 built-in functions (progress: 2 out of 111)
     - 🌑 derivations (hello world derivation)
   - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error
     messages, etc.)
