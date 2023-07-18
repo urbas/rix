@@ -1228,22 +1228,27 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_builtin_head() {
-        assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
-    }
-
-    #[test]
     fn test_eval_lists_are_lazy() {
         assert_eq!(eval_ok("builtins.head [ 1 (1 / 0) ]"), Value::Int(1));
     }
 
     #[test]
-    fn test_eval_abort() {
+    fn test_eval_builtin_abort() {
         let error_msg = evaluate(r#"abort "foo""#).unwrap_err();
         let expected_msg = "Evaluation aborted with the following error message: 'foo'";
         assert!(
             error_msg.contains(expected_msg),
             "Error message '{error_msg}' didn't contain '{expected_msg}'."
         );
+    }
+
+    #[test]
+    fn test_eval_builtin_add() {
+        assert_eq!(eval_ok("builtins.add 1 2"), Value::Int(3));
+    }
+
+    #[test]
+    fn test_eval_builtin_head() {
+        assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
     }
 }
