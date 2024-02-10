@@ -1,12 +1,30 @@
 {
   "nodes": {
+    "nixjs-rt": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1707640111,
+        "narHash": "sha256-H4VMvxvN2+l0gZalvFyxEALWlYjZm1+Vh6m3VEFs/mU=",
+        "owner": "urbas",
+        "repo": "nixjs-rt",
+        "rev": "d01121bab47082d1986f00c88cbb887890d5b69f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "urbas",
+        "repo": "nixjs-rt",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1689631193,
-        "narHash": "sha256-AGSkBZaiTODQc8eT1rZDrQIjtb8JtFwJ0wVPzArlrnM=",
+        "lastModified": 1707451808,
+        "narHash": "sha256-UwDBUNHNRsYKFJzyTMVMTF5qS4xeJlWoeyJf+6vvamU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "57695599bdc4f7bfe5d28cfa23f14b3d8bdf8a5f",
+        "rev": "442d407992384ed9c0e6d352de75b69079904e4e",
         "type": "github"
       },
       "original": {
@@ -30,28 +48,10 @@
         "type": "indirect"
       }
     },
-    "nixrt": {
-      "inputs": {
-        "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1689706907,
-        "narHash": "sha256-A+jUzcZraJYQ9YyfOmKub1ItPl5r/fzlkWr5gNTUOeg=",
-        "owner": "urbas",
-        "repo": "nixrt",
-        "rev": "304a8c13e4b7b8082692ef93a19b92da677908eb",
-        "type": "github"
-      },
-      "original": {
-        "owner": "urbas",
-        "repo": "nixrt",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs",
-        "nixrt": "nixrt"
+        "nixjs-rt": "nixjs-rt",
+        "nixpkgs": "nixpkgs_2"
       }
     }
   },

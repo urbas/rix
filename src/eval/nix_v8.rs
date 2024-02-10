@@ -476,10 +476,12 @@ fn nix_value_from_module(
     namespace_obj: &v8::Local<v8::Object>,
 ) -> EvalResult {
     let nix_value_attr = v8::String::new(scope, "__nixValue").unwrap();
-    let Some(nix_value) = namespace_obj
-        .get(scope, nix_value_attr.into()) else {
-            todo!("Could not find the nix value: {:?}", namespace_obj.to_rust_string_lossy(scope))
-        };
+    let Some(nix_value) = namespace_obj.get(scope, nix_value_attr.into()) else {
+        todo!(
+            "Could not find the nix value: {:?}",
+            namespace_obj.to_rust_string_lossy(scope)
+        )
+    };
     let nix_value: v8::Local<v8::Function> =
         nix_value.try_into().expect("Nix value must be a function.");
 
@@ -516,10 +518,9 @@ fn call_js_function<'s>(
         // TODO: Again, the stack trace needs to be source-mapped. See TODO above.
         let err_msg = scope
             .stack_trace()
-            .map_or(
-                "Unknown evaluation error.".to_owned(),
-                |stack| stack.to_rust_string_lossy(scope),
-            );
+            .map_or("Unknown evaluation error.".to_owned(), |stack| {
+                stack.to_rust_string_lossy(scope)
+            });
         return Err(err_msg);
     };
     Ok(strict_nix_value)
