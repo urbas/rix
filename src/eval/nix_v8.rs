@@ -1252,4 +1252,50 @@ mod tests {
     fn test_eval_builtin_head() {
         assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
     }
+
+    #[test]
+    fn test_eval_builtin_all() {
+        assert_eq!(eval_ok("builtins.all (a: a == 1) [ 1 1 ]"), Value::Bool(true));
+        assert_eq!(eval_ok("builtins.all (a: a == 1) [ 1 2 ]"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_builtin_all_lazy() {
+        assert_eq!(eval_ok("builtins.all (a: false) [ 1 (1 / 0) ]"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_builtin_any() {
+        assert_eq!(eval_ok("builtins.any (a: a == 1) [ 1 2 ]"), Value::Bool(true));
+        assert_eq!(eval_ok("builtins.any (a: a == 1) [ 2 2 ]"), Value::Bool(false));
+    }
+
+    #[test]
+    fn test_eval_builtin_any_lazy() {
+        assert_eq!(eval_ok("builtins.any (a: true) [ 1 (1 / 0) ]"), Value::Bool(true));
+    }
+
+    #[test]
+    fn test_eval_builtin_attr_names() {
+        assert_eq!(
+            eval_ok("builtins.attrNames { b = true; a = true; }"),
+            Value::List(vec![Value::Str("a".to_owned()), Value::Str("b".to_owned())])
+        );
+    }
+
+    #[test]
+    fn test_eval_builtin_attr_values() {
+        assert_eq!(
+            eval_ok("builtins.attrValues { b = true; a = false; }"),
+            Value::List(vec![Value::Bool(false), Value::Bool(true)])
+        );
+    }
+
+    #[test]
+    fn test_eval_builtin_attr_values_lazy() {
+        assert_eq!(
+            eval_ok("builtins.head (builtins.attrValues { b = 1 / 0; a = false; })"),
+            Value::Bool(false)
+        );
+    }
 }
