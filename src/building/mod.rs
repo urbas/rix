@@ -102,7 +102,7 @@ fn get_mount_paths(config: &BuildConfig) -> Result<HashSet<PathBuf>, String> {
     let mut mount_paths = HashSet::new();
     for (drv_path, outputs) in &config.derivation.input_drvs {
         let derivation = load_derivation(drv_path)?;
-        for output in outputs {
+        for output in &outputs.outputs {
             let drv_output = derivation.outputs.get(output).ok_or_else(|| {
                 format!("Could not find output '{output}' of derivation {drv_path}")
             })?;

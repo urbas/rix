@@ -1,4 +1,4 @@
-use crate::derivations::{Derivation, DerivationOutput};
+use crate::derivations::{Derivation, DerivationOutput, InputDrv};
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
 use nom::character::complete::char;
@@ -88,7 +88,7 @@ fn parse_string(input: &str) -> IResult<&str, String> {
     delimited(char('"'), parse_string_inside_quotes, char('"'))(input)
 }
 
-fn parse_input_derivations(input: &str) -> IResult<&str, BTreeMap<String, BTreeSet<String>>> {
+fn parse_input_derivations(input: &str) -> IResult<&str, BTreeMap<String, InputDrv>> {
     let input_derivations = fold_many0(
         tuple((
             char('('),
@@ -100,7 +100,13 @@ fn parse_input_derivations(input: &str) -> IResult<&str, BTreeMap<String, BTreeS
         )),
         BTreeMap::new,
         |mut input_drvs, (_, drv, _, input_type, _, _)| {
-            input_drvs.insert(drv, input_type);
+            input_drvs.insert(
+                drv,
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(), // TODO: add support for dynamic outputs
+                    outputs: input_type,
+                },
+            );
             input_drvs
         },
     );
@@ -204,8 +210,20 @@ mod tests {
             .into_iter()
             .collect(),
             input_drvs: vec![
-                ("/drv1".to_owned(), to_string_set(&["out"])),
-                ("/drv2".to_owned(), to_string_set(&["dev"])),
+                (
+                    "/drv1".to_owned(),
+                    InputDrv {
+                        dynamic_outputs: BTreeMap::new(),
+                        outputs: to_string_set(&["out"]),
+                    },
+                ),
+                (
+                    "/drv2".to_owned(),
+                    InputDrv {
+                        dynamic_outputs: BTreeMap::new(),
+                        outputs: to_string_set(&["dev"]),
+                    },
+                ),
             ]
             .into_iter()
             .collect(),
@@ -282,8 +300,20 @@ mod tests {
     fn test_parse_input_derivations() {
         let actual = parse_input_derivations(r#"[("a",["b","c"]),("e",["f","g"])]"#);
         let expected = vec![
-            ("a".to_owned(), to_string_set(&["b", "c"])),
-            ("e".to_owned(), to_string_set(&["f", "g"])),
+            (
+                "a".to_owned(),
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(),
+                    outputs: to_string_set(&["b", "c"]),
+                },
+            ),
+            (
+                "e".to_owned(),
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(),
+                    outputs: to_string_set(&["f", "g"]),
+                },
+            ),
         ];
         assert_eq!(actual, Ok(("", expected.into_iter().collect())));
     }

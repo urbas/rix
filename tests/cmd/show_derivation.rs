@@ -25,7 +25,7 @@ fn show_derivation() {
     let expected_output: Value = serde_json::from_str(format!(
         "{{\"{}\":{}}}",
         &derivation_path,
-        r#"{"args":["-e","/builder.sh"],"builder":"/bash","env":{"ENV1":"val1","ENV2":"val2"},"inputDrvs":{"/drv2":["dev"],"/drv1":["out"]},"inputSrcs":["/builder.sh"],"outputs":{"out":{"hash":"abc","hashAlgo":"sha256","path":"/foo"}},"system":"x86_64-linux"}"#,
+        r#"{"args":["-e","/builder.sh"],"builder":"/bash","env":{"ENV1":"val1","ENV2":"val2"},"inputDrvs":{"/drv2":{"dynamicOutputs":{},"outputs":["dev"]},"/drv1":{"dynamicOutputs":{},"outputs":["out"]}},"inputSrcs":["/builder.sh"],"outputs":{"out":{"hash":"abc","hashAlgo":"sha256","path":"/foo"}},"system":"x86_64-linux"}"#,
     ).as_str()).unwrap();
 
     let cmd_result = Command::cargo_bin("rix")
