@@ -1255,24 +1255,42 @@ mod tests {
 
     #[test]
     fn test_eval_builtin_all() {
-        assert_eq!(eval_ok("builtins.all (a: a == 1) [ 1 1 ]"), Value::Bool(true));
-        assert_eq!(eval_ok("builtins.all (a: a == 1) [ 1 2 ]"), Value::Bool(false));
+        assert_eq!(
+            eval_ok("builtins.all (a: a == 1) [ 1 1 ]"),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            eval_ok("builtins.all (a: a == 1) [ 1 2 ]"),
+            Value::Bool(false)
+        );
     }
 
     #[test]
     fn test_eval_builtin_all_lazy() {
-        assert_eq!(eval_ok("builtins.all (a: false) [ 1 (1 / 0) ]"), Value::Bool(false));
+        assert_eq!(
+            eval_ok("builtins.all (a: false) [ 1 (1 / 0) ]"),
+            Value::Bool(false)
+        );
     }
 
     #[test]
     fn test_eval_builtin_any() {
-        assert_eq!(eval_ok("builtins.any (a: a == 1) [ 1 2 ]"), Value::Bool(true));
-        assert_eq!(eval_ok("builtins.any (a: a == 1) [ 2 2 ]"), Value::Bool(false));
+        assert_eq!(
+            eval_ok("builtins.any (a: a == 1) [ 1 2 ]"),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            eval_ok("builtins.any (a: a == 1) [ 2 2 ]"),
+            Value::Bool(false)
+        );
     }
 
     #[test]
     fn test_eval_builtin_any_lazy() {
-        assert_eq!(eval_ok("builtins.any (a: true) [ 1 (1 / 0) ]"), Value::Bool(true));
+        assert_eq!(
+            eval_ok("builtins.any (a: true) [ 1 (1 / 0) ]"),
+            Value::Bool(true)
+        );
     }
 
     #[test]
