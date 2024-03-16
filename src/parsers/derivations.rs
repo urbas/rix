@@ -103,7 +103,7 @@ fn parse_input_derivations(input: &str) -> IResult<&str, BTreeMap<String, InputD
             input_drvs.insert(
                 drv,
                 InputDrv {
-                    dynamic_outputs: BTreeMap::new(), // TODO (): add support for dynamic outputs
+                    dynamic_outputs: BTreeMap::new(), // TODO: add support for dynamic outputs
                     outputs: input_type,
                 },
             );
