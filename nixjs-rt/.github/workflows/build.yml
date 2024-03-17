@@ -1,0 +1,39 @@
+name: builder
+on: [push, pull_request]
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Nix Setup
+        run: |
+          set -x
+          sudo mkdir /nix
+          sudo chown $USER /nix
+          mkdir -p $HOME/.config/nix
+          echo 'experimental-features = nix-command flakes' > $HOME/.config/nix/nix.conf
+
+      - name: Cache Nix DevEnv
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-nix-dev-env
+        with:
+          path: |
+            /nix
+            /home/runner/.bash_profile
+            /home/runner/.nix-profile
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.nix', '**/flake.lock') }}
+
+      - name: Build
+        run: |
+          [ -f /home/runner/.nix-profile/etc/profile.d/nix.sh ] || sh <(curl -L https://nixos.org/nix/install) --no-daemon
+          . /home/runner/.nix-profile/etc/profile.d/nix.sh
+          eval "$(nix print-dev-env)"
+
+          parallel --line-buffer --ctagstring "{}>\033[0m" scripts/{} ::: \
+            check-nix-pkg.sh \
+            check-npm-deps-hash.sh \
+            check-npm.sh
