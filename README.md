@@ -29,7 +29,7 @@ mapping just to name a few).
 
 - 🌘 stage 2:
 
-  - 🌘 built-in functions (progress: 3 out of 111)
+  - 🌘 built-in functions (progress: 7 out of 113)
   - 🌑 derivations (hello world derivation)
 
 - 🌑 stage 3: full implementation (all derivations in nixpkgs, nice error
