@@ -1,7 +1,7 @@
 use crate::test_utils::tmp_file;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use rix::derivations::{load_derivation, save_derivation, Derivation, DerivationOutput};
+use rix::derivations::{load_derivation, save_derivation, Derivation, DerivationOutput, InputDrv};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{read_to_string, File};
 use std::os::unix::fs::PermissionsExt;
@@ -93,7 +93,10 @@ fn build_derivation_missing_deps(test_data: &TestData) {
         &vec![],
         BTreeMap::from([(
             test_data.busybox_drv_path.clone(),
-            BTreeSet::from(["out".to_owned()]),
+            InputDrv {
+                dynamic_outputs: BTreeMap::new(),
+                outputs: BTreeSet::from(["out".to_owned()]),
+            },
         )]),
         BTreeMap::from([(
             "PATH".to_owned(),
@@ -178,11 +181,17 @@ fn simple_derivation(
         BTreeMap::from([
             (
                 test_data.coreutils_drv_path.clone(),
-                BTreeSet::from(["out".to_owned()]),
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(),
+                    outputs: BTreeSet::from(["out".to_owned()]),
+                },
             ),
             (
                 test_data.busybox_drv_path.clone(),
-                BTreeSet::from(["out".to_owned()]),
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(),
+                    outputs: BTreeSet::from(["out".to_owned()]),
+                },
             ),
         ]),
         BTreeMap::from([(
@@ -198,7 +207,7 @@ fn test_derivation(
     builder_script: &str,
     builder: &str,
     input_srcs: &Vec<String>,
-    input_drvs: BTreeMap<String, BTreeSet<String>>,
+    input_drvs: BTreeMap<String, InputDrv>,
     mut env: BTreeMap<String, String>,
 ) -> Derivation {
     let builder_script_file = tmp_file(&src_dir, "builder.sh", builder_script);

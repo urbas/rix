@@ -10,7 +10,7 @@ pub struct Derivation {
     pub args: Vec<String>,
     pub builder: String,
     pub env: BTreeMap<String, String>,
-    pub input_drvs: BTreeMap<String, BTreeSet<String>>,
+    pub input_drvs: BTreeMap<String, InputDrv>,
     pub input_srcs: BTreeSet<String>,
     pub outputs: BTreeMap<String, DerivationOutput>,
     pub system: String,
@@ -22,6 +22,13 @@ pub struct DerivationOutput {
     pub hash: Option<String>,
     pub hash_algo: Option<String>,
     pub path: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputDrv {
+    pub dynamic_outputs: BTreeMap<String, InputDrv>,
+    pub outputs: BTreeSet<String>,
 }
 
 pub fn load_derivation(drv_path: &str) -> Result<Derivation, String> {
@@ -71,14 +78,14 @@ fn write_outputs(
 
 fn write_input_drvs(
     writer: &mut impl Write,
-    input_drvs: &BTreeMap<String, BTreeSet<String>>,
+    input_drvs: &BTreeMap<String, InputDrv>,
 ) -> std::io::Result<()> {
     write_iter(writer, &mut input_drvs.iter(), |writer, entry| {
-        let (drv_path, drv_outputs) = entry;
+        let (drv_path, input_drv) = entry;
         write!(writer, "(")?;
         write_string(writer, drv_path)?;
         write!(writer, ",")?;
-        write_iter(writer, &mut drv_outputs.iter(), write_string)?;
+        write_iter(writer, &mut input_drv.outputs.iter(), write_string)?;
         write!(writer, ")")
     })
 }
@@ -167,7 +174,10 @@ mod tests {
             env: BTreeMap::from([("var1".to_owned(), "val1".to_owned())]),
             input_drvs: BTreeMap::from([(
                 "foo.drv".to_owned(),
-                BTreeSet::from(["out".to_owned()]),
+                InputDrv {
+                    dynamic_outputs: BTreeMap::new(),
+                    outputs: BTreeSet::from(["out".to_owned()]),
+                },
             )]),
             input_srcs: BTreeSet::from(["/foo.txt".to_owned()]),
             outputs: BTreeMap::from([(
