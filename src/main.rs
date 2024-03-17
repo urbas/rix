@@ -7,13 +7,7 @@ fn main() -> ExitCode {
         .version("0.0.1")
         .about("Rix is another nix.");
 
-    let subcommands = &[
-        &cmd::build_derivation::cmd(),
-        &cmd::eval::cmd(),
-        &cmd::hash::cmd(),
-        &cmd::show_derivation::cmd(),
-        &cmd::transpile::cmd(),
-    ];
+    let subcommands = &[&cmd::eval::cmd(), &cmd::transpile::cmd()];
 
     for subcommand in subcommands {
         cmd = cmd.subcommand((subcommand.cmd)(Command::new(subcommand.name)));

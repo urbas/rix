@@ -1,6 +1,6 @@
 [package]
 name = "rustnix"
-description = "A reimplementation of nix in Rust."
+description = "Nix language interpreter"
 documentation = "https://github.com/urbas/rix/blob/master/README.md"
 edition = "2021"
 homepage = "https://github.com/urbas/rix"
@@ -23,13 +23,6 @@ predicates = "2.1.1"
 [dependencies]
 clap = "4.0.18"
 colored = "2.0.0"
-libc = "0"
-nix = { version = "0.25.0", features = ["env"] }
-nom = "7.1.1"
 rowan = "0"
 rnix = "0"
-serde = { version = "1.0.147", features = ["derive"] }
-serde_json = "1.0.87"
-tempfile = "3.3.0"
-uuid = { version = "1.2.1", features = ["v4"] }
 v8 = "0.80.0"
