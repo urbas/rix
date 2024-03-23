@@ -1,2 +1,7 @@
 /target
 /.direnv
+
+# nixjs-rt
+nixjs-rt/coverage
+nixjs-rt/dist
+nixjs-rt/node_modules
