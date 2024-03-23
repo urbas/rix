@@ -5,30 +5,13 @@ jobs:
     name: Build
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Nix Setup
-        run: |
-          set -x
-          sudo mkdir /nix
-          sudo chown $USER /nix
-          mkdir -p $HOME/.config/nix
-          echo 'experimental-features = nix-command flakes' > $HOME/.config/nix/nix.conf
-
-      - name: Cache Nix DevEnv
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-nix-dev-env
-        with:
-          path: |
-            /nix
-            /home/runner/.bash_profile
-            /home/runner/.nix-profile
-          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/flake.nix', '**/flake.lock') }}
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
 
       - name: Cache Rust Artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-rust-artifacts
         with:
@@ -38,13 +21,8 @@ jobs:
             target
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', '**/.cargo/config.toml', '**/rust-toolchain.toml', '**/flake.nix', '**/flake.lock') }}
 
-      - name: install nix
-        run: |
-          [ -f /home/runner/.nix-profile/etc/profile.d/nix.sh ] || sh <(curl -L https://nixos.org/nix/install) --no-daemon
-
       - name: nixjs-rt
         run: |
-          . /home/runner/.nix-profile/etc/profile.d/nix.sh
           cd nixjs-rt
           eval "$(nix print-dev-env)"
 
@@ -55,7 +33,6 @@ jobs:
 
       - name: Build
         run: |
-          . /home/runner/.nix-profile/etc/profile.d/nix.sh
           eval "$(nix print-dev-env)"
 
           set -x
