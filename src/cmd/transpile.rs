@@ -1,5 +1,5 @@
 use crate::cmd::{to_cmd_err, RixSubCommand};
-use crate::eval::execution;
+use crate::eval::emit_js;
 use clap::{Arg, ArgAction, ArgMatches};
 
 pub fn cmd() -> RixSubCommand {
@@ -26,7 +26,7 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
         .ok_or("You must provide a single expression to transpile.")?;
     let is_expression = parsed_args.get_one::<bool>("expr").unwrap();
     if *is_expression {
-        let js_source = execution::emit_module(expression)
+        let js_source = emit_js::emit_module(expression)
             .map_err(|_err| "Failed to transpile the expression.".to_owned())?;
         print!("{js_source}");
     } else {
