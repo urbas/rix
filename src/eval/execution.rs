@@ -6,7 +6,7 @@ use v8::ModuleStatus;
 
 use crate::eval::types::EvalResult;
 
-use super::emit_js::emit_expr;
+use super::emit_js::emit_module;
 use super::helpers::{get_nixrt_type, try_get_js_object_key};
 use super::types::js_value_to_nix;
 
@@ -51,18 +51,6 @@ fn initialize_v8() {
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
     });
-}
-
-pub fn emit_module(nix_expr: &str) -> Result<String, String> {
-    let root = rnix::Root::parse(nix_expr).tree();
-    let root_expr = root.expr().expect("Not implemented");
-    let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
-    let mut out_src = format!("import n from '{nixrt_js_module}';\n");
-    out_src += "export const __nixrt = n;\n";
-    out_src += "export const __nixValue = (ctx) => ";
-    emit_expr(&root_expr, &mut out_src)?;
-    out_src += ";\n";
-    Ok(out_src)
 }
 
 fn nix_value_from_module(
@@ -146,6 +134,7 @@ fn create_eval_ctx<'s>(
         .new_instance(scope, &[js_script_dir_path.into()])
         .expect("Could not construct the global evaluation context."))
 }
+
 fn new_script_origin<'s>(
     scope: &mut v8::HandleScope<'s>,
     resource_name: &str,

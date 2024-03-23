@@ -3,7 +3,19 @@ use std::collections::HashSet;
 use rnix::{ast, SyntaxKind};
 use rowan::ast::AstNode;
 
-pub fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
+pub fn emit_module(nix_expr: &str) -> Result<String, String> {
+    let root = rnix::Root::parse(nix_expr).tree();
+    let root_expr = root.expr().expect("Not implemented");
+    let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
+    let mut out_src = format!("import n from '{nixrt_js_module}';\n");
+    out_src += "export const __nixrt = n;\n";
+    out_src += "export const __nixValue = (ctx) => ";
+    emit_expr(&root_expr, &mut out_src)?;
+    out_src += ";\n";
+    Ok(out_src)
+}
+
+fn emit_expr(nix_ast: &ast::Expr, out_src: &mut String) -> Result<(), String> {
     match nix_ast {
         ast::Expr::Apply(apply) => emit_apply(apply, out_src),
         ast::Expr::AttrSet(attrset) => emit_attrset(attrset, out_src),
@@ -103,7 +115,6 @@ fn emit_bin_op(bin_op: &ast::BinOp, out_src: &mut String) -> Result<(), String> 
     let rhs = &bin_op.rhs().expect("Not implemented");
     match operator {
         // Arithmetic
-        // ast::BinOpKind::Add => emit_add_bin_op(lhs, rhs, out_src)?,
         ast::BinOpKind::Add => emit_nixrt_bin_op(lhs, rhs, "add", out_src)?,
         ast::BinOpKind::Div => emit_nixrt_bin_op(lhs, rhs, "div", out_src)?,
         ast::BinOpKind::Mul => emit_nixrt_bin_op(lhs, rhs, "mul", out_src)?,
