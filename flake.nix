@@ -12,10 +12,7 @@
     forSupportedSystems ({ pkgs, system, ... }:
       let
         rix-deps = with pkgs; [
-          busybox-sandbox-shell
-          coreutils
           cargo-watch
-          nix
           nixpkgs-fmt
           rustup
         ];
@@ -26,11 +23,18 @@
           prefetch-npm-deps
         ];
 
-        nixjs-rt = import ./nixjs-rt/pkg.nix { inherit pkgs; self = "${self}/nixjs-rt"; };
+        pkgs' = pkgs.extend (pkgs-self: pkgs-super: {
+          nixjs-rt = pkgs-self.callPackage ./nixjs-rt/pkg.nix {
+            self = "${self}/nixjs-rt";
+          };
+
+          rix = pkgs-self.callPackage ./pkg.nix { rixSources = self; };
+        });
 
       in
+      with pkgs';
       {
-        packages.${system} = { inherit nixjs-rt pkgs; };
+        packages.${system} = { inherit nixjs-rt rix; default = rix; };
         devShells.${system}.default = pkgs.stdenv.mkDerivation {
           name = "rix";
           buildInputs = rix-deps ++ nixjs-rt-deps;

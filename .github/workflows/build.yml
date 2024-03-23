@@ -31,11 +31,10 @@ jobs:
             check-npm-deps-hash.sh \
             check-npm.sh
 
-      - name: Build
+      - name: rix
         run: |
           eval "$(nix print-dev-env)"
 
-          set -x
-          cargo fmt --check
-          cargo clippy -- --deny "warnings"
-          cargo test
+          parallel --line-buffer --ctagstring "{}>\033[0m" scripts/{} ::: \
+            check-cargo.sh \
+            check-nix-pkg.sh

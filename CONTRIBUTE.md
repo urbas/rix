@@ -88,15 +88,10 @@ Update the version of Rust:
 Update Rust dependencies:
 
 ```bash
-cargo update
+cargo update && scripts/update-cargo-deps-hash.sh
 ```
 
-Update JavaScript dependencies:
-
-```bash
-cd nixjs-rt
-npm update
-```
+Update JavaScript dependencies: see [nixjs-rt/CONTRIBUTE.md](./nixjs-rt/CONTRIBUTE.md)
 
 # Troubleshooting
 
