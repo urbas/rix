@@ -1,7 +1,9 @@
-{ self, pkgs }:
+{ self
+, buildNpmPackage
+}:
 
-pkgs.buildNpmPackage rec {
+buildNpmPackage rec {
   name = "nixjs-rt";
   src = self;
-  npmDepsHash = "sha256-0J/nRg9cwMoBfLm3F540lIYcIa/LVHM5JopAdbDHCTQ=";
+  npmDepsHash = "sha256-Irgqy5OTXg6vAdyOvRuYPpwlwYoNLdGh4Ps4U9lKiSc=";
 }
