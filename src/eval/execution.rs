@@ -192,7 +192,6 @@ fn resolve_module_callback<'a>(
 ) -> Option<v8::Local<'a, v8::Module>> {
     let scope = &mut unsafe { v8::CallbackScope::new(context) };
     let module_path = specifier.to_rust_string_lossy(scope);
-    dbg!(&module_path);
     let module_source_str = std::fs::read_to_string(&module_path).unwrap();
     let module_source_v8 = to_v8_source(scope, &module_source_str, &module_path);
     v8::script_compiler::compile_module(scope, module_source_v8)
