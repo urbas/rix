@@ -31,23 +31,49 @@ Your editor should pick up the Rust toolchain as specified in
 
 Install the [direnv vscode extension](https://github.com/direnv/direnv-vscode).
 
-# Building & Testing
+# Build, Test, and Iterate
 
-The typical Rust way:
+In the first shell you can continuously build `nixjs-rt` (the Nix JavaScript run-time library):
 
 ```bash
-cargo build
-cargo test
+cd nixjs-rt
+npm ci
+npm run build-watch
+```
 
-# Examples of how to run rix in debug mode
+In the second shell continuously test `nixjs-rt`:
+
+```bash
+cd nixjs-rt
+npm run test-watch
+```
+
+In the third shell continuously check and test `rix`:
+
+```bash
+cargo-watch -x clippy -x test
+```
+
+# Run `rix`
+
+First build nixjs-rt:
+
+```bash
+cd nixjs-rt
+npm ci
+npm run build-watch
+```
+
+Now run `rix` in debug mode:
+
+```bash
 cargo run -- --help
 cargo run -- eval --expr '1 + 1'
 ```
 
 ## Updating dependencies
 
-Update the `nix` tool, the `nixrt` library, `rustup`, and dependencies used in
-integration tests:
+Update tools like `rustup`, `npm`, and other dependencies:
 
 ```bash
 nix flake update
@@ -63,6 +89,13 @@ Update Rust dependencies:
 
 ```bash
 cargo update
+```
+
+Update JavaScript dependencies:
+
+```bash
+cd nixjs-rt
+npm update
 ```
 
 # Troubleshooting

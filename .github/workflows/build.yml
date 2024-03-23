@@ -38,9 +38,23 @@ jobs:
             target
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock', '**/.cargo/config.toml', '**/rust-toolchain.toml', '**/flake.nix', '**/flake.lock') }}
 
-      - name: Build
+      - name: install nix
         run: |
           [ -f /home/runner/.nix-profile/etc/profile.d/nix.sh ] || sh <(curl -L https://nixos.org/nix/install) --no-daemon
+
+      - name: nixjs-rt
+        run: |
+          . /home/runner/.nix-profile/etc/profile.d/nix.sh
+          cd nixjs-rt
+          eval "$(nix print-dev-env)"
+
+          parallel --line-buffer --ctagstring "{}>\033[0m" scripts/{} ::: \
+            check-nix-pkg.sh \
+            check-npm-deps-hash.sh \
+            check-npm.sh
+
+      - name: Build
+        run: |
           . /home/runner/.nix-profile/etc/profile.d/nix.sh
           eval "$(nix print-dev-env)"
 
