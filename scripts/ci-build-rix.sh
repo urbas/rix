@@ -4,7 +4,6 @@ set -ex
 
 (
   cd nixjs-rt;
-  npm ci
   npm run build
 )
 

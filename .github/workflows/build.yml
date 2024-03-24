@@ -25,6 +25,8 @@ jobs:
         run: |
           eval "$(nix print-dev-env)"
 
+          (cd nixjs-rt; npm ci)
+
           parallel --line-buffer --ctagstring "{}>\033[0m" scripts/ci-{}.sh ::: \
             build-rix \
             check-nixjs-rt \
