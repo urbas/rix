@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+cd nixjs-rt
+
 expectedHash=$(prefetch-npm-deps package-lock.json 2> /dev/null)
 
 grep -q --fixed-string "$expectedHash" pkg.nix \

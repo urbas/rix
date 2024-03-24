@@ -3,7 +3,7 @@
 set -e
 
 outLink=$(mktemp -d)/result
-nix build --out-link $outLink ..#nixjs-rt
+nix build --out-link $outLink .#nixjs-rt
 
 function expectFile() {
   local theFile=$1
