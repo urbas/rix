@@ -1,0 +1,12 @@
+name: magic-nix-cache
+
+on:
+  workflow_call: {}
+
+jobs:
+  magic-nix-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
