@@ -14,7 +14,7 @@ fn transpile_bool_expr() {
     assert_cmd(&["--expr", "1.0"])
         .success()
         .stdout(predicate::str::contains(
-            "export const __nixValue = (ctx) => new n.NixFloat(1.0);\n",
+            "export default (ctx) => new n.NixFloat(1.0);\n",
         ))
         .stderr(predicate::str::is_empty());
 }
