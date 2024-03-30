@@ -90,7 +90,7 @@ fn import_nix_module<'s>(
     mut ret: v8::ReturnValue,
 ) {
     let module_path = args.get(0).to_rust_string_lossy(scope);
-    let module_source_str = std::fs::read_to_string(&module_path).unwrap();
+    let module_source_str = std::fs::read_to_string(module_path).unwrap();
 
     let nix_fn = eval_nix_fn_from_string(scope, &module_source_str);
 
@@ -98,8 +98,8 @@ fn import_nix_module<'s>(
         Ok(nix_fn) => nix_fn,
         Err(err) => {
             let err_str = v8::String::new(scope, &err).unwrap();
-            let err_obj = v8::Exception::error(scope, err_str.into());
-            ret.set(err_obj.into());
+            let err_obj = v8::Exception::error(scope, err_str);
+            ret.set(err_obj);
             return;
         }
     };
