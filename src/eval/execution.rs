@@ -71,7 +71,7 @@ fn eval_nix_fn_from_string<'s>(
 
     let namespace_obj = module.get_module_namespace().to_object(scope).unwrap();
 
-    let nix_value_attr = v8::String::new(scope, "__nixValue").unwrap();
+    let nix_value_attr = v8::String::new(scope, "default").unwrap();
     let Some(nix_value) = namespace_obj.get(scope, nix_value_attr.into()) else {
         todo!(
             "Could not find the nix value: {:?}",
