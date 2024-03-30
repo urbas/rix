@@ -35,7 +35,6 @@
           name = "rix";
           buildInputs = rix-deps ++ nixjs-rt-deps;
           shellHook = ''
-            export RIX_NIXRT_JS_MODULE=nixjs-rt/dist/lib.mjs
           '';
         };
       });

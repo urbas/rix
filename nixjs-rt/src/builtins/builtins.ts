@@ -1,5 +1,6 @@
 import {
   Attrset,
+  EvalCtx,
   EvalException,
   FALSE,
   Lambda,
@@ -9,6 +10,7 @@ import {
   NixList,
   NixString,
   NixType,
+  Path,
   TRUE,
 } from "../lib";
 
@@ -20,6 +22,25 @@ export function getBuiltins() {
       throw new EvalException(
         `Evaluation aborted with the following error message: '${message.asString()}'`,
       );
+    },
+
+    import: (path) => {
+      const pathStrict = path.toStrict();
+
+      if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
+        throw new EvalException(
+          `Cannot import a value of type '${pathStrict.typeOf()}'.`,
+        );
+      }
+
+      const pathValue = pathStrict.toJs();
+
+      // Below is an intrinsic function that's injected by the Nix evaluator.
+      // @ts-ignore
+      const resultingFn: (ctx: EvalCtx) => NixType = importNixModule(pathValue);
+
+      const ctx = new EvalCtx(pathValue);
+      return resultingFn(ctx);
     },
 
     add: (lhs): Lambda => {

@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "@jest/globals";
-import n, {
+import * as n from "./lib";
+import {
   Attrset,
   attrset,
   AttrsetBody,
