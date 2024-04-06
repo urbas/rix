@@ -37,12 +37,12 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
         .set(scope, nixrt_attr.into(), nixjs_rt_obj.into())
         .unwrap();
 
-    let root_nix_fn = eval_nix_fn_from_string(scope, nix_expr)?;
+    let root_nix_fn = nix_expr_to_js_function(scope, nix_expr)?;
 
     nix_value_from_module(scope, root_nix_fn, nixjs_rt_obj)
 }
 
-fn eval_nix_fn_from_string<'s>(
+fn nix_expr_to_js_function<'s>(
     scope: &mut HandleScope<'s>,
     nix_expr: &str,
 ) -> Result<v8::Local<'s, v8::Function>, String> {
@@ -90,7 +90,7 @@ fn import_nix_module<'s>(
     let module_path = args.get(0).to_rust_string_lossy(scope);
     let module_source_str = std::fs::read_to_string(module_path).unwrap();
 
-    let nix_fn = eval_nix_fn_from_string(scope, &module_source_str);
+    let nix_fn = nix_expr_to_js_function(scope, &module_source_str);
 
     let nix_fn = match nix_fn {
         Ok(nix_fn) => nix_fn,
