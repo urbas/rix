@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::path::Path;
 use std::sync::Once;
 
-use v8::ModuleStatus;
+use v8::{HandleScope, Local, ModuleStatus, Object};
 
 use crate::eval::types::EvalResult;
 
@@ -14,14 +14,41 @@ static INIT_V8: Once = Once::new();
 
 pub fn evaluate(nix_expr: &str) -> EvalResult {
     initialize_v8();
+    // Declare the V8 execution context
     let isolate = &mut v8::Isolate::new(Default::default());
     let scope = &mut v8::HandleScope::new(isolate);
     let context = v8::Context::new(scope);
     let scope = &mut v8::ContextScope::new(scope, context);
+    let global = context.global(scope);
 
+    let import_module_attr = v8::String::new(scope, "importNixModule").unwrap();
+    let import_module_fn = v8::Function::new(scope, import_nix_module).unwrap();
+    global
+        .set(scope, import_module_attr.into(), import_module_fn.into())
+        .unwrap();
+
+    // Execute the Nix runtime JS module, get its exports
+    let nixjs_rt_str = include_str!("../../nixjs-rt/dist/lib.mjs");
+    let nixjs_rt_obj = exec_module(nixjs_rt_str, scope).unwrap();
+
+    // Set them to a global variable
+    let nixrt_attr = v8::String::new(scope, "n").unwrap();
+    global
+        .set(scope, nixrt_attr.into(), nixjs_rt_obj.into())
+        .unwrap();
+
+    let root_nix_fn = nix_expr_to_js_function(scope, nix_expr)?;
+
+    nix_value_from_module(scope, root_nix_fn, nixjs_rt_obj)
+}
+
+fn nix_expr_to_js_function<'s>(
+    scope: &mut HandleScope<'s>,
+    nix_expr: &str,
+) -> Result<v8::Local<'s, v8::Function>, String> {
     let source_str = emit_module(nix_expr)?;
-    let source_v8 = to_v8_source(scope, &source_str, "<eval string>");
-    let module = v8::script_compiler::compile_module(scope, source_v8).unwrap();
+    let module_source_v8 = to_v8_source(scope, &source_str, "<eval string>");
+    let module = v8::script_compiler::compile_module(scope, module_source_v8).unwrap();
 
     if module
         .instantiate_module(scope, resolve_module_callback)
@@ -42,7 +69,63 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     }
 
     let namespace_obj = module.get_module_namespace().to_object(scope).unwrap();
-    nix_value_from_module(scope, &namespace_obj)
+
+    let Some(nix_value) = try_get_js_object_key(scope, &namespace_obj.into(), "default")? else {
+        todo!(
+            "Could not find the nix value: {:?}",
+            namespace_obj.to_rust_string_lossy(scope)
+        )
+    };
+    let nix_value: v8::Local<v8::Function> =
+        nix_value.try_into().expect("Nix value must be a function.");
+
+    Ok(nix_value)
+}
+
+fn import_nix_module<'s>(
+    scope: &mut HandleScope<'s>,
+    args: v8::FunctionCallbackArguments<'s>,
+    mut ret: v8::ReturnValue,
+) {
+    let module_path = args.get(0).to_rust_string_lossy(scope);
+    let module_source_str = std::fs::read_to_string(module_path).unwrap();
+
+    let nix_fn = nix_expr_to_js_function(scope, &module_source_str);
+
+    let nix_fn = match nix_fn {
+        Ok(nix_fn) => nix_fn,
+        Err(err) => {
+            let err_str = v8::String::new(scope, &err).unwrap();
+            let err_obj = v8::Exception::error(scope, err_str);
+            ret.set(err_obj);
+            return;
+        }
+    };
+
+    ret.set(nix_fn.into());
+}
+
+fn exec_module<'a>(
+    code: &str,
+    scope: &mut v8::HandleScope<'a>,
+) -> Result<Local<'a, Object>, String> {
+    let source = to_v8_source(scope, code, "<eval string>");
+    let module = v8::script_compiler::compile_module(scope, source).unwrap();
+
+    if module
+        .instantiate_module(scope, resolve_module_callback)
+        .is_none()
+    {
+        return Err("Instantiation failure.".to_owned());
+    }
+
+    if module.evaluate(scope).is_none() {
+        return Err("Evaluation failure.".to_owned());
+    }
+
+    let obj = module.get_module_namespace().to_object(scope).unwrap();
+
+    Ok(obj)
 }
 
 fn initialize_v8() {
@@ -55,20 +138,10 @@ fn initialize_v8() {
 
 fn nix_value_from_module(
     scope: &mut v8::ContextScope<v8::HandleScope>,
-    namespace_obj: &v8::Local<v8::Object>,
+    nix_value: v8::Local<v8::Function>,
+    nixjs_rt_obj: v8::Local<v8::Object>,
 ) -> EvalResult {
-    let nix_value_attr = v8::String::new(scope, "__nixValue").unwrap();
-    let Some(nix_value) = namespace_obj.get(scope, nix_value_attr.into()) else {
-        todo!(
-            "Could not find the nix value: {:?}",
-            namespace_obj.to_rust_string_lossy(scope)
-        )
-    };
-    let nix_value: v8::Local<v8::Function> =
-        nix_value.try_into().expect("Nix value must be a function.");
-
-    let nixrt_attr = v8::String::new(scope, "__nixrt").unwrap();
-    let nixrt: v8::Local<v8::Value> = namespace_obj.get(scope, nixrt_attr.into()).unwrap();
+    let nixrt: v8::Local<v8::Value> = nixjs_rt_obj.into();
 
     let eval_ctx = create_eval_ctx(
         scope,
@@ -80,10 +153,11 @@ fn nix_value_from_module(
 
     let nix_value = call_js_function(scope, &nix_value, &[eval_ctx.into()])?;
 
-    let to_strict_fn: v8::Local<v8::Function> = try_get_js_object_key(scope, &nixrt, "toStrict")?
-        .expect("Could not find the function `toStrict` in `nixrt`.")
-        .try_into()
-        .expect("`n.toStrict` is not a function.");
+    let to_strict_fn: v8::Local<v8::Function> =
+        try_get_js_object_key(scope, &nixrt, "recursiveStrict")?
+            .expect("Could not find the function `recursiveStrict` in `nixrt`.")
+            .try_into()
+            .expect("`n.recursiveStrict` is not a function.");
     let strict_nix_value = call_js_function(scope, &to_strict_fn, &[nix_value])?;
 
     js_value_to_nix(scope, &nixrt, &strict_nix_value)
@@ -174,14 +248,10 @@ fn to_v8_source(
 }
 
 fn resolve_module_callback<'a>(
-    context: v8::Local<'a, v8::Context>,
-    specifier: v8::Local<'a, v8::String>,
-    _import_assertions: v8::Local<'a, v8::FixedArray>,
-    _referrer: v8::Local<'a, v8::Module>,
+    _: v8::Local<'a, v8::Context>,
+    _: v8::Local<'a, v8::String>,
+    _: v8::Local<'a, v8::FixedArray>,
+    _: v8::Local<'a, v8::Module>,
 ) -> Option<v8::Local<'a, v8::Module>> {
-    let scope = &mut unsafe { v8::CallbackScope::new(context) };
-    let module_path = specifier.to_rust_string_lossy(scope);
-    let module_source_str = std::fs::read_to_string(&module_path).unwrap();
-    let module_source_v8 = to_v8_source(scope, &module_source_str, &module_path);
-    v8::script_compiler::compile_module(scope, module_source_v8)
+    panic!("Module resolution not supported.")
 }

@@ -15,9 +15,8 @@ automatically set up. You can verify this with:
 cargo --version
 ```
 
-Rix uses `nixrt` (a JavaScript library), which it loads from the location
-specified in the `RIX_NIXRT_JS_MODULE` environment variable. `direnv` makes sure
-that this environment variable is set correctly.
+Rix uses `nixrt` (a JavaScript library), which is located in the `nixrt-rt` folder
+in this repository. It needs to be built before `rix` can be run.
 
 ## Editor
 

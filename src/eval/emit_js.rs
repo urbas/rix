@@ -6,10 +6,8 @@ use rowan::ast::AstNode;
 pub fn emit_module(nix_expr: &str) -> Result<String, String> {
     let root = rnix::Root::parse(nix_expr).tree();
     let root_expr = root.expr().expect("Not implemented");
-    let nixrt_js_module = env!("RIX_NIXRT_JS_MODULE");
-    let mut out_src = format!("import n from '{nixrt_js_module}';\n");
-    out_src += "export const __nixrt = n;\n";
-    out_src += "export const __nixValue = (ctx) => ";
+    let mut out_src = String::new();
+    out_src += "export default (ctx) => ";
     emit_expr(&root_expr, &mut out_src)?;
     out_src += ";\n";
     Ok(out_src)

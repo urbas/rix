@@ -410,4 +410,12 @@ mod tests {
             Value::Bool(false)
         );
     }
+
+    #[test]
+    fn test_eval_builtin_() {
+        assert_eq!(
+            eval_ok("(builtins.import ./flake.nix).description"),
+            Value::Str("A reimplementation or nix in Rust.".into())
+        );
+    }
 }

@@ -6,7 +6,13 @@
   "search.exclude": {
     ".direnv/**": true
   },
-  "cSpell.words": [
-    "rnix"
-  ],
+  "cSpell.words": ["rnix"],
+  "editor.tabSize": 4,
+  "rust-analyzer.check.overrideCommand": [
+    "cargo",
+    "clippy",
+    "--all",
+    "--message-format=json",
+    "--all-targets"
+  ]
 }
