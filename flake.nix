@@ -34,8 +34,6 @@
         devShells.${system}.default = pkgs.stdenv.mkDerivation {
           name = "rix";
           buildInputs = rix-deps ++ nixjs-rt-deps;
-          shellHook = ''
-          '';
         };
       });
 }
