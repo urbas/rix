@@ -50,7 +50,6 @@ fn eval_nix_fn_from_string<'s>(
     let module_source_v8 = to_v8_source(scope, &source_str, "<eval string>");
     let module = v8::script_compiler::compile_module(scope, module_source_v8).unwrap();
 
-    let resolve_module_callback = |_, _, _, _| panic!("Module resolution not supported.");
     if module
         .instantiate_module(scope, resolve_module_callback)
         .is_none()
@@ -250,14 +249,10 @@ fn to_v8_source(
 }
 
 fn resolve_module_callback<'a>(
-    context: v8::Local<'a, v8::Context>,
-    specifier: v8::Local<'a, v8::String>,
-    _import_assertions: v8::Local<'a, v8::FixedArray>,
-    _referrer: v8::Local<'a, v8::Module>,
+    _: v8::Local<'a, v8::Context>,
+    _: v8::Local<'a, v8::String>,
+    _: v8::Local<'a, v8::FixedArray>,
+    _: v8::Local<'a, v8::Module>,
 ) -> Option<v8::Local<'a, v8::Module>> {
-    let scope = &mut unsafe { v8::CallbackScope::new(context) };
-    let module_path = specifier.to_rust_string_lossy(scope);
-    let module_source_str = std::fs::read_to_string(&module_path).unwrap();
-    let module_source_v8 = to_v8_source(scope, &module_source_str, &module_path);
-    v8::script_compiler::compile_module(scope, module_source_v8)
+    panic!("Module resolution not supported.")
 }
