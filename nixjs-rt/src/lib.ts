@@ -1,4 +1,10 @@
 import { getBuiltins } from "./builtins/builtins";
+import { err } from "./errors";
+import { functionCallWithoutArgumentError } from "./errors/function";
+import { missingAttributeError } from "./errors/attribute";
+import { otherError } from "./errors/other";
+import { invalidTypeError, typeMismatchError } from "./errors/typeError";
+import { couldntFindVariableError } from "./errors/variable";
 
 // Types:
 export class EvalException extends Error {
@@ -89,7 +95,7 @@ export class EvalCtx implements Scope {
         return value;
       }
     }
-    throw new EvalException(`Could not find variable '${name}'.`);
+    throw couldntFindVariableError(name);
   }
 }
 
@@ -98,9 +104,7 @@ export abstract class NixType {
    * This method implements the `+` operator. It adds the `rhs` value to this value.
    */
   add(rhs: NixType): NixType {
-    throw new EvalException(
-      `Cannot add '${this.typeOf()}' to '${rhs.typeOf()}'.`,
-    );
+    throw invalidTypeError(this, err`Cannot add ${rhs} to ${this}`);
   }
 
   and(rhs: NixType): NixBool {
@@ -108,33 +112,26 @@ export abstract class NixType {
   }
 
   apply(param: NixType): NixType {
-    throw new EvalException(
-      `Attempt to call something which is not a function but is '${this.typeOf()}'.`,
+    throw invalidTypeError(
+      this,
+      err`Attempt to call something which is not a function but is ${this}`,
     );
   }
 
   asBoolean(): boolean {
-    throw new EvalException(
-      `Value is '${this.typeOf()}' but a boolean was expected.`,
-    );
+    throw typeMismatchError(this, NixBool);
   }
 
   asString(): string {
-    throw new EvalException(
-      `Value is '${this.typeOf()}' but a string was expected.`,
-    );
+    throw typeMismatchError(this, NixString);
   }
 
   concat(other: NixType): NixList {
-    throw new EvalException(
-      `Cannot concatenate '${this.typeOf()}' and '${other.typeOf()}'.`,
-    );
+    throw invalidTypeError(this, err`Cannot concatenate ${this} and ${other}`);
   }
 
   div(rhs: NixType): NixInt | NixFloat {
-    throw new EvalException(
-      `Cannot divide '${this.typeOf()}' and '${rhs.typeOf()}'.`,
-    );
+    throw invalidTypeError(this, err`Cannot divide ${this} and ${rhs}`);
   }
 
   /**
@@ -160,9 +157,7 @@ export abstract class NixType {
    * This method implements the `<` operator. It checks whether the `rhs` value is lower than this value.
    */
   less(rhs: NixType): NixBool {
-    throw new EvalException(
-      `Cannot compare '${this.typeOf()}' with '${rhs.typeOf()}'; values of that type are incomparable`,
-    );
+    throw invalidTypeError(this, err`Cannot compare ${this} with ${rhs}`);
   }
 
   lessEq(rhs: NixType): NixBool {
@@ -178,13 +173,11 @@ export abstract class NixType {
   }
 
   mul(rhs: NixType): NixInt | NixFloat {
-    throw new EvalException(
-      `Cannot multiply '${this.typeOf()}' and '${rhs.typeOf()}'.`,
-    );
+    throw invalidTypeError(this, err`Cannot multiply ${this} and ${rhs}`);
   }
 
   neg(): NixInt | NixFloat {
-    throw new EvalException(`Cannot negate '${this.typeOf()}'.`);
+    throw invalidTypeError(this, err`Cannot negate ${this}`);
   }
 
   neq(rhs: NixType): NixBool {
@@ -196,16 +189,14 @@ export abstract class NixType {
   }
 
   select(attrPath: NixType[], defaultValue: NixType | undefined): NixType {
-    throw new EvalException(`Cannot select attribute from '${this.typeOf()}'.`);
+    throw invalidTypeError(this, err`Cannot select attribute from ${this}`);
   }
 
   /**
    * This method implements the `-` operator. It subtracts the `rhs` value from this value.
    */
   sub(rhs: NixType): NixInt | NixFloat {
-    throw new EvalException(
-      `Cannot subtract '${this.typeOf()}' and '${rhs.typeOf()}'.`,
-    );
+    throw invalidTypeError(this, err`Cannot subtract ${this} and ${rhs}`);
   }
 
   /**
@@ -228,14 +219,32 @@ export abstract class NixType {
   abstract typeOf(): string;
 
   /**
+   * Returns a human-readable string representation of this value, that can be inserted into a sentence.
+   *
+   * For example, "a string", "an array", etc.
+   *
+   * Static functions can't be made abstract, so abstract is omitted here.
+   */
+  static toHumanReadable(): string {
+    throw new Error("abstract");
+  }
+
+  /**
+   * Returns the name of the type (as a string, which effectively acts as an enum).
+   *
+   * This is used for identifying types for error messages.
+   */
+  static toTypeName(): NixTypeName {
+    throw new Error("abstract");
+  }
+
+  /**
    * Returns a new attrset whose attributes are a union of this attrset and the right-hand-side attrset.
    * The values are taken from the right-hand-side attrset or from this attrset. Values from the
    * right-hand-side attrset override values from this attrset.
    */
   update(rhs: NixType): Attrset {
-    throw new EvalException(
-      `Cannot merge '${this.typeOf()}' with '${rhs.typeOf()}'. Can only merge attrset with attrset.`,
-    );
+    throw invalidTypeError(this, err`Cannot merge ${this} with ${rhs}`);
   }
 }
 
@@ -252,6 +261,14 @@ export class NixBool extends NixType {
   }
 
   typeOf(): string {
+    return "bool";
+  }
+
+  static toHumanReadable(): string {
+    return "a boolean";
+  }
+
+  static toTypeName(): NixTypeName {
     return "bool";
   }
 
@@ -295,8 +312,10 @@ export abstract class Attrset extends NixType implements Scope {
   get(attrName: NixType): undefined | NixType {
     attrName = attrName.toStrict();
     if (!(attrName instanceof NixString)) {
-      throw new EvalException(
-        `Attribute name must be a string but '${attrName.typeOf()}' given.`,
+      throw typeMismatchError(
+        attrName,
+        NixString,
+        err`Attribute name must be ${NixString}, but ${attrName} was given.`,
       );
     }
     return this.lookup(attrName.value);
@@ -358,11 +377,7 @@ export abstract class Attrset extends NixType implements Scope {
 
     if (value === undefined) {
       if (defaultValue === undefined) {
-        throw new EvalException(
-          `Attribute '${attrPath
-            .map((attrName) => attrName.asString())
-            .join(".")}' is missing.`,
-        );
+        throw missingAttributeError(attrPath.map((attr) => attr.asString()));
       }
       return defaultValue;
     }
@@ -378,6 +393,14 @@ export abstract class Attrset extends NixType implements Scope {
   }
 
   typeOf(): string {
+    return "set";
+  }
+
+  static toHumanReadable(): string {
+    return "a set";
+  }
+
+  static toTypeName(): NixTypeName {
     return "set";
   }
 
@@ -459,7 +482,7 @@ class AttrsetBuilder implements Scope {
       const currentEntryIdx = this.pendingEntryIdx++;
       const [attrPath, value] = this.entries[currentEntryIdx];
       if (attrPath.length === 0) {
-        throw new EvalException(
+        throw otherError(
           "Cannot add an undefined attribute name to the attrset.",
         );
       }
@@ -533,8 +556,15 @@ function _recursiveDisjointMerge(
 function _assertIsMergeable(value: NixType, attrPath: string[]): Attrset {
   const valueStrict = value.toStrict();
   if (!(valueStrict instanceof Attrset)) {
-    throw new EvalException(
-      `Attribute '${attrPath.join(".")}' already defined.`,
+    // FIXME: Is this error relevant? I'm not sure why it was here, but I'll leave it as a comment
+    // throw new EvalException(
+    //   `Attribute '${attrPath.join(".")}' already defined.`,
+    // );
+
+    throw typeMismatchError(
+      valueStrict,
+      Attrset,
+      err`Cannot merge ${valueStrict}, expected ${Attrset}`,
     );
   }
   return valueStrict;
@@ -643,6 +673,14 @@ export class NixFloat extends NixType {
   typeOf(): string {
     return "float";
   }
+
+  static toHumanReadable(): string {
+    return "a float";
+  }
+
+  static toTypeName(): NixTypeName {
+    return "float";
+  }
 }
 
 export class NixInt extends NixType {
@@ -739,6 +777,14 @@ export class NixInt extends NixType {
   typeOf(): string {
     return "int";
   }
+
+  static toHumanReadable(): string {
+    return "an int";
+  }
+
+  static toTypeName(): NixTypeName {
+    return "int";
+  }
 }
 
 export class NixList extends NixType {
@@ -810,6 +856,14 @@ export class NixList extends NixType {
   typeOf(): string {
     return "list";
   }
+
+  static toHumanReadable(): string {
+    return "a list";
+  }
+
+  static toTypeName(): NixTypeName {
+    return "list";
+  }
 }
 
 export class NixNull extends NixType {
@@ -822,6 +876,14 @@ export class NixNull extends NixType {
   }
 
   typeOf(): string {
+    return "null";
+  }
+
+  static toHumanReadable(): string {
+    return "a null";
+  }
+
+  static toTypeName(): NixTypeName {
     return "null";
   }
 }
@@ -873,6 +935,14 @@ export class NixString extends NixType {
   typeOf(): string {
     return "string";
   }
+
+  static toHumanReadable(): string {
+    return "a string";
+  }
+
+  static toTypeName(): NixTypeName {
+    return "string";
+  }
 }
 
 export class Path extends NixType {
@@ -907,7 +977,15 @@ export class Path extends NixType {
   }
 
   typeOf(): string {
-    return "path";
+    return "string";
+  }
+
+  static toHumanReadable(): string {
+    return "a string";
+  }
+
+  static toTypeName(): NixTypeName {
+    return "string";
   }
 }
 
@@ -1031,8 +1109,14 @@ export class Lazy extends NixType {
     return this.toStrict().typeOf();
   }
 
-  override update(rhs: NixType): Attrset {
-    return this.toStrict().update(rhs);
+  static toHumanReadable(): string {
+    // This static method should never be called
+    throw new Error("Lazy value isn't a real type");
+  }
+
+  static toTypeName(): NixTypeName {
+    // This static method should never be called
+    throw new Error("Lazy value isn't a real type");
   }
 }
 
@@ -1053,6 +1137,14 @@ export class Lambda extends NixType {
   }
 
   typeOf(): string {
+    return "lambda";
+  }
+
+  static toHumanReadable(): string {
+    return "a lambda";
+  }
+
+  static toTypeName(): NixTypeName {
     return "lambda";
   }
 }
@@ -1104,9 +1196,7 @@ export function patternLambda(
       let paramValue = param.lookup(paramName);
       if (paramValue === undefined) {
         if (defaultValue === undefined) {
-          throw new EvalException(
-            `Function called without required argument '${paramName}'.`,
-          );
+          throw functionCallWithoutArgumentError(paramName);
         }
         paramValue = defaultValue;
       }
@@ -1187,7 +1277,7 @@ function _attrPathToValue(
   value: NixType,
 ): undefined | NixType {
   if (attrPath.length === 0) {
-    throw new EvalException("Unexpected attr path of zero length.");
+    throw otherError("Unexpected attr path of zero length.");
   }
 
   let attrName = attrPath[0].toStrict();
@@ -1237,3 +1327,30 @@ export function withExpr(
 ): any {
   return body(evalCtx.withNonShadowingScope(namespace));
 }
+
+export const allNixTypeClasses = [
+  NixBool,
+  NixFloat,
+  NixInt,
+  NixList,
+  NixNull,
+  NixString,
+  Path,
+  Lazy,
+  Lambda,
+  Attrset,
+];
+
+export type NixTypeName =
+  | "bool"
+  | "float"
+  | "int"
+  | "list"
+  | "null"
+  | "string"
+  | "path"
+  | "lambda"
+  | "set";
+
+export type NixTypeClass = (typeof allNixTypeClasses)[number];
+export type NixTypeInstance = InstanceType<NixTypeClass>;

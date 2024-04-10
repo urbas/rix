@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from "@jest/globals";
+import { beforeEach, expect, test, jest } from "@jest/globals";
 import * as n from "../../lib";
 import {
   Attrset,
@@ -34,6 +34,7 @@ test("'builtins.add' throws when trying to add two strings", () => {
   ).toThrow(
     new EvalException("value is of type 'string' while a number was expected."),
   );
+
   expect(() =>
     getBuiltin("add").apply(new NixFloat(1)).apply(new NixString("b")),
   ).toThrow(

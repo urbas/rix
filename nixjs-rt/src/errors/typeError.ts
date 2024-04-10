@@ -1,0 +1,37 @@
+import {
+  ErrorMessage,
+  err,
+  NixError,
+  instanceToClass,
+  classListToErrorMessage,
+} from ".";
+import { NixTypeClass, NixTypeInstance } from "../lib";
+
+export class NixTypeMismatchError {
+  constructor(
+    public readonly expected: NixTypeClass | NixTypeClass[],
+    public readonly got: NixTypeClass,
+  ) {}
+
+  toDefaultErrorMessage(): ErrorMessage {
+    return err`Expected ${classListToErrorMessage(this.expected)}, but got ${this.got}`;
+  }
+}
+
+export function typeMismatchError(
+  got: NixTypeClass | NixTypeInstance,
+  expected: NixTypeClass | NixTypeClass[],
+  message?: ErrorMessage,
+) {
+  const error = new NixTypeMismatchError(expected, instanceToClass(got));
+  return new NixError(error, message ?? error.toDefaultErrorMessage());
+}
+
+/** Similar to a type mismatch error, but with expected being [] and the message is required */
+export function invalidTypeError(
+  got: NixTypeClass | NixTypeInstance,
+  message: ErrorMessage,
+) {
+  const error = new NixTypeMismatchError([], instanceToClass(got));
+  return new NixError(error, message);
+}

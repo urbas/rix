@@ -1,3 +1,7 @@
+import { err } from "../errors";
+import { abortError } from "../errors/abort";
+import { otherError } from "../errors/other";
+import { typeMismatchError } from "../errors/typeError";
 import {
   Attrset,
   EvalCtx,
@@ -19,17 +23,18 @@ type BuiltinsRecord = Record<string, (param: NixType) => NixType>;
 export function getBuiltins() {
   const builtins: BuiltinsRecord = {
     abort: (message) => {
-      throw new EvalException(
-        `Evaluation aborted with the following error message: '${message.asString()}'`,
-      );
+      throw abortError(message.asString());
     },
 
     import: (path) => {
       const pathStrict = path.toStrict();
 
       if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
-        throw new EvalException(
-          `Cannot import a value of type '${pathStrict.typeOf()}'.`,
+        const expected = [Path, NixString];
+        throw typeMismatchError(
+          pathStrict,
+          expected,
+          err`Import statement expected ${expected}, but got ${pathStrict}.`,
         );
       }
 
@@ -47,14 +52,20 @@ export function getBuiltins() {
       return new Lambda((rhs) => {
         let lhsStrict = lhs.toStrict();
         if (!(lhsStrict instanceof NixInt || lhsStrict instanceof NixFloat)) {
-          throw new EvalException(
-            `value is of type '${lhs.typeOf()}' while a number was expected.`,
+          let expected = [NixInt, NixFloat];
+          throw typeMismatchError(
+            lhsStrict,
+            expected,
+            err`Cannot add '${lhsStrict}', expected ${expected}.`,
           );
         }
         let rhsStrict = rhs.toStrict();
         if (!(rhsStrict instanceof NixInt || rhsStrict instanceof NixFloat)) {
-          throw new EvalException(
-            `value is of type '${rhs.typeOf()}' while a number was expected.`,
+          let expected = [NixInt, NixFloat];
+          throw typeMismatchError(
+            rhsStrict,
+            expected,
+            err`Cannot add '${lhsStrict}', expected ${expected}.`,
           );
         }
         return lhsStrict.add(rhsStrict);
@@ -64,14 +75,14 @@ export function getBuiltins() {
     head: (list) => {
       const listStrict = list.toStrict();
       if (!(listStrict instanceof NixList)) {
-        throw new EvalException(
-          `Cannot apply the 'head' function on '${listStrict.typeOf()}'.`,
+        throw typeMismatchError(
+          listStrict,
+          NixList,
+          err`Cannot apply the 'head' function on '${listStrict}', expected ${NixList}.`,
         );
       }
       if (listStrict.values.length === 0) {
-        throw new EvalException(
-          "Cannot fetch the first element in an empty list.",
-        );
+        throw otherError("Cannot fetch the first element in an empty list.");
       }
       return listStrict.values[0];
     },
@@ -79,16 +90,20 @@ export function getBuiltins() {
     all: (pred) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
-        throw new EvalException(
-          `'all' function requires another function, but got '${lambdaStrict.typeOf()}' instead.`,
+        throw typeMismatchError(
+          lambdaStrict,
+          Lambda,
+          err`'all' function requires ${Lambda}, but got ${lambdaStrict} instead.`,
         );
       }
 
       return new Lambda((list) => {
         const listStrict = list.toStrict();
         if (!(listStrict instanceof NixList)) {
-          throw new EvalException(
-            `Cannot apply the 'all' function on '${listStrict.typeOf()}'.`,
+          throw typeMismatchError(
+            listStrict,
+            NixList,
+            err`'all' function expects ${NixList}, got '${listStrict.typeOf()}'.`,
           );
         }
 
@@ -106,16 +121,20 @@ export function getBuiltins() {
     any: (pred) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
-        throw new EvalException(
-          `'any' function requires another function, but got '${lambdaStrict.typeOf()}' instead.`,
+        throw typeMismatchError(
+          lambdaStrict,
+          Lambda,
+          err`'any' function requires ${Lambda}, but got ${lambdaStrict} instead.`,
         );
       }
 
       return new Lambda((list) => {
         const listStrict = list.toStrict();
         if (!(listStrict instanceof NixList)) {
-          throw new EvalException(
-            `Cannot apply the 'any' function on '${listStrict.typeOf()}'.`,
+          throw typeMismatchError(
+            listStrict,
+            NixList,
+            err`'any' function expects ${NixList}, got '${listStrict}'.`,
           );
         }
 
@@ -133,8 +152,10 @@ export function getBuiltins() {
     attrNames: (attrset) => {
       const attrsetStrict = attrset.toStrict();
       if (!(attrsetStrict instanceof Attrset)) {
-        throw new EvalException(
-          `Cannot apply the 'attrNames' function on '${attrsetStrict.typeOf()}'.`,
+        throw typeMismatchError(
+          attrsetStrict,
+          Attrset,
+          err`'attrNames' function expects ${Attrset}, got '${attrsetStrict}'.`,
         );
       }
 
@@ -147,8 +168,10 @@ export function getBuiltins() {
     attrValues: (attrset) => {
       const attrsetStrict = attrset.toStrict();
       if (!(attrsetStrict instanceof Attrset)) {
-        throw new EvalException(
-          `Cannot apply the 'attrValues' function on '${attrsetStrict.typeOf()}'.`,
+        throw typeMismatchError(
+          attrsetStrict,
+          Attrset,
+          err`'attrValues' function expects ${Attrset}, got '${attrsetStrict}'.`,
         );
       }
 
