@@ -7,7 +7,7 @@ use v8::{HandleScope, Local, ModuleStatus, Object};
 use crate::eval::types::EvalResult;
 
 use super::emit_js::emit_module;
-use super::helpers::{get_nixrt_type, try_get_js_object_key};
+use super::helpers::{call_js_function, get_nixrt_type, try_get_js_object_key};
 use super::types::js_value_to_nix;
 
 static INIT_V8: Once = Once::new();
@@ -161,25 +161,6 @@ fn nix_value_from_module(
     let strict_nix_value = call_js_function(scope, &to_strict_fn, &[nix_value])?;
 
     js_value_to_nix(scope, &nixrt, &strict_nix_value)
-}
-
-fn call_js_function<'s>(
-    scope: &mut v8::ContextScope<'_, v8::HandleScope<'s>>,
-    js_function: &v8::Local<v8::Function>,
-    args: &[v8::Local<v8::Value>],
-) -> Result<v8::Local<'s, v8::Value>, String> {
-    let scope = &mut v8::TryCatch::new(scope);
-    let recv = v8::undefined(scope).into();
-    let Some(strict_nix_value) = js_function.call(scope, recv, args) else {
-        // TODO: Again, the stack trace needs to be source-mapped. See TODO above.
-        let err_msg = scope
-            .stack_trace()
-            .map_or("Unknown evaluation error.".to_owned(), |stack| {
-                stack.to_rust_string_lossy(scope)
-            });
-        return Err(err_msg);
-    };
-    Ok(strict_nix_value)
 }
 
 fn create_eval_ctx<'s>(

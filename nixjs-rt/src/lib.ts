@@ -1,10 +1,37 @@
 import { getBuiltins } from "./builtins/builtins";
-import { err } from "./errors";
-import { functionCallWithoutArgumentError } from "./errors/function";
-import { missingAttributeError } from "./errors/attribute";
-import { otherError } from "./errors/other";
-import { invalidTypeError, typeMismatchError } from "./errors/typeError";
-import { couldntFindVariableError } from "./errors/variable";
+import { NixError, err } from "./errors";
+import {
+  NixFunctionCallWithoutArgumentError,
+  functionCallWithoutArgumentError,
+} from "./errors/function";
+import {
+  NixAttributeAlreadyDefinedError,
+  NixMissingAttributeError,
+  missingAttributeError,
+} from "./errors/attribute";
+import { NixOtherError, otherError } from "./errors/other";
+import {
+  NixTypeMismatchError,
+  invalidTypeError,
+  typeMismatchError,
+} from "./errors/typeError";
+import {
+  NixCouldntFindVariableError,
+  couldntFindVariableError,
+} from "./errors/variable";
+import { NixAbortError } from "./errors/abort";
+
+// Error re-exports
+export { NixError } from "./errors";
+export { NixFunctionCallWithoutArgumentError } from "./errors/function";
+export {
+  NixAttributeAlreadyDefinedError,
+  NixMissingAttributeError,
+} from "./errors/attribute";
+export { NixOtherError } from "./errors/other";
+export { NixTypeMismatchError } from "./errors/typeError";
+export { NixCouldntFindVariableError } from "./errors/variable";
+export { NixAbortError } from "./errors/abort";
 
 // Types:
 export class EvalException extends Error {

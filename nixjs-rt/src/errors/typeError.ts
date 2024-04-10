@@ -9,7 +9,7 @@ import { NixTypeClass, NixTypeInstance } from "../lib";
 
 export class NixTypeMismatchError {
   constructor(
-    public readonly expected: NixTypeClass | NixTypeClass[],
+    public readonly expected: NixTypeClass[],
     public readonly got: NixTypeClass,
   ) {}
 
@@ -23,6 +23,10 @@ export function typeMismatchError(
   expected: NixTypeClass | NixTypeClass[],
   message?: ErrorMessage,
 ) {
+  if (!Array.isArray(expected)) {
+    expected = [expected];
+  }
+
   const error = new NixTypeMismatchError(expected, instanceToClass(got));
   return new NixError(error, message ?? error.toDefaultErrorMessage());
 }
