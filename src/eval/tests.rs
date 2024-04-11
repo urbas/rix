@@ -330,7 +330,7 @@ mod tests {
     #[test]
     fn test_eval_builtin_abort() {
         let error_msg = evaluate(r#"abort "foo""#).unwrap_err();
-        let expected_msg = "Aborted: 'foo'";
+        let expected_msg = "foo";
         assert_eq!(
             error_msg.kind,
             NixErrorKind::Abort {
