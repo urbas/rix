@@ -4,21 +4,23 @@ use clap::{ArgMatches, Command};
 use colored::*;
 use std::process::ExitCode;
 
+use crate::eval::error::NixError;
+
 pub struct RixSubCommand {
     pub name: &'static str,
     pub cmd: fn(Command) -> Command,
     pub handler: fn(&ArgMatches) -> Result<(), ExitCode>,
 }
 
-pub fn print_err(msg: &str) {
+pub fn print_err(msg: NixError) {
     eprintln!("{}: {}", "error".red(), msg);
 }
 
-pub fn to_cmd_err(result: Result<(), String>) -> Result<(), ExitCode> {
-    result.map_err(|err| print_and_err(&err))
+pub fn to_cmd_err(result: Result<(), NixError>) -> Result<(), ExitCode> {
+    result.map_err(print_and_err)
 }
 
-pub fn print_and_err(msg: &str) -> ExitCode {
+pub fn print_and_err(msg: NixError) -> ExitCode {
     print_err(msg);
     ExitCode::FAILURE
 }

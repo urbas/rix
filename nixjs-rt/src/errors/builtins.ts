@@ -1,7 +1,7 @@
-import { err } from "../errors";
-import { abortError } from "../errors/abort";
-import { otherError } from "../errors/other";
-import { typeMismatchError } from "../errors/typeError";
+import { err } from ".";
+import { abortError } from "./abort";
+import { otherError } from "./other";
+import { typeMismatchError } from "./typeError";
 import {
   Attrset,
   EvalCtx,

@@ -186,10 +186,10 @@ type NixErrorKind =
 export class NixError extends Error {
   constructor(
     public readonly kind: NixErrorKind,
-    message: ErrorMessage,
+    public readonly richMessage: ErrorMessage,
   ) {
     // TODO: In the future, make error messages have color highlighting for special error parts
-    const messageString = message.map((part) => part.value).join("");
+    const messageString = richMessage.map((part) => part.value).join("");
 
     super(messageString);
   }

@@ -1,12 +1,15 @@
-use v8::Object;
+use super::error::{js_error_to_rust, NixError};
 
-pub fn is_nixrt_type(
+pub fn is_nixrt_type<'s, T>(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<'s, T>,
     js_value: &v8::Local<v8::Value>,
     type_name: &str,
-) -> Result<bool, String> {
-    let nixrt_type = get_nixrt_type(scope, nixrt, type_name)?;
+) -> Result<bool, String>
+where
+    v8::Local<'s, T>: Into<v8::Local<'s, v8::Value>>,
+{
+    let nixrt_type = get_nixrt_type(scope, &(*nixrt).into(), type_name)?;
     js_value.instance_of(scope, nixrt_type).ok_or_else(|| {
         format!(
             "Failed to check whether value '{}' is '{type_name}'.",
@@ -65,18 +68,22 @@ where
 pub fn call_js_function<'s>(
     scope: &mut v8::HandleScope<'s>,
     js_function: &v8::Local<v8::Function>,
+    nixrt: v8::Local<v8::Object>,
     args: &[v8::Local<v8::Value>],
-) -> Result<v8::Local<'s, v8::Value>, String> {
-    let scope = &mut v8::TryCatch::new(scope);
-    let recv = v8::undefined(scope).into();
-    let Some(strict_nix_value) = js_function.call(scope, recv, args) else {
-        // TODO: Again, the stack trace needs to be source-mapped. See TODO above.
-        let err_msg = scope
-            .stack_trace()
-            .map_or("Unknown evaluation error.".to_owned(), |stack| {
-                stack.to_rust_string_lossy(scope)
-            });
-        return Err(err_msg);
+) -> Result<v8::Local<'s, v8::Value>, NixError> {
+    let try_scope = &mut v8::TryCatch::new(scope);
+    let recv = v8::undefined(try_scope).into();
+    let Some(strict_nix_value) = js_function.call(try_scope, recv, args) else {
+        // TODO: Again, the stack trace needs to be source-mapped.
+        if let Some(error) = try_scope.exception() {
+            let error = js_error_to_rust(try_scope, nixrt, error);
+
+            dbg!(&error);
+
+            return Err(error);
+        } else {
+            return Err("Unknown evaluation error.".into());
+        }
     };
     Ok(strict_nix_value)
 }

@@ -1,4 +1,4 @@
-import { getBuiltins } from "./builtins/builtins";
+import { getBuiltins } from "./errors/builtins";
 import { NixError, err } from "./errors";
 import {
   NixFunctionCallWithoutArgumentError,
@@ -1004,15 +1004,15 @@ export class Path extends NixType {
   }
 
   typeOf(): string {
-    return "string";
+    return "path";
   }
 
   static toHumanReadable(): string {
-    return "a string";
+    return "a path";
   }
 
   static toTypeName(): NixTypeName {
-    return "string";
+    return "path";
   }
 }
 

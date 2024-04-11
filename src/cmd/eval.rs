@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::cmd::{to_cmd_err, RixSubCommand};
+use crate::eval::error::NixError;
 use crate::eval::execution;
 use crate::eval::types::Value;
 use clap::{Arg, ArgAction, ArgMatches};
@@ -23,7 +24,7 @@ pub fn cmd() -> RixSubCommand {
     }
 }
 
-pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), String> {
+pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), NixError> {
     let expr = parsed_args
         .get_one::<String>("expr")
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;

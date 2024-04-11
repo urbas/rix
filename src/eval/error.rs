@@ -28,6 +28,17 @@ impl From<String> for NixError {
     }
 }
 
+impl<'a> From<&'a str> for NixError {
+    fn from(message: &'a str) -> Self {
+        NixError {
+            message: vec![NixErrorMessagePart::Plain(message.to_string())],
+            kind: NixErrorKind::UnexpectedRustError {
+                message: message.to_string(),
+            },
+        }
+    }
+}
+
 impl From<v8::DataError> for NixError {
     fn from(error: v8::DataError) -> Self {
         NixError {
@@ -45,7 +56,7 @@ pub enum NixErrorMessagePart {
     Highlighted(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NixTypeKind {
     Bool,
     Float,
@@ -58,7 +69,7 @@ pub enum NixTypeKind {
     Set,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum NixErrorKind {
     Abort {
         message: String,
@@ -94,7 +105,7 @@ pub enum NixErrorKind {
 
 pub fn js_error_to_rust(
     scope: &mut v8::HandleScope,
-    nixrt: v8::Local<v8::Value>,
+    nixrt: v8::Local<v8::Object>,
     error: v8::Local<v8::Value>,
 ) -> NixError {
     let result = try_js_error_to_rust(scope, nixrt, error);
@@ -107,7 +118,7 @@ pub fn js_error_to_rust(
 
 fn try_js_error_to_rust(
     scope: &mut v8::HandleScope,
-    nixrt: v8::Local<v8::Value>,
+    nixrt: v8::Local<v8::Object>,
     error: v8::Local<v8::Value>,
 ) -> Result<NixError, NixError> {
     // If the error is not a NixError instance, then it's an unexpected error.
@@ -120,36 +131,40 @@ fn try_js_error_to_rust(
         });
     }
 
-    let message = vec![]; // TODO
+    let message_js = get_js_value_key(scope, &error, "richMessage")?;
+    let message = js_error_message_to_rust(scope, message_js)?;
 
     let kind_js = get_js_value_key(scope, &error, "kind")?;
 
     let kind = if is_nixrt_type(scope, &nixrt, &kind_js, "NixAbortError")? {
-        let message_js = get_js_value_key(scope, &error, "message")?;
+        let message_js = get_js_value_key(scope, &kind_js, "message")?;
         let message = message_js.to_rust_string_lossy(scope);
         NixErrorKind::Abort { message }
     } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixCouldntFindVariableError")? {
-        let var_name_js = get_js_value_key(scope, &error, "varName")?;
+        let var_name_js = get_js_value_key(scope, &kind_js, "varName")?;
         let var_name = var_name_js.to_rust_string_lossy(scope);
         NixErrorKind::CouldntFindVariable { var_name }
     } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixTypeMismatchError")? {
-        let expected_js = get_js_value_key(scope, &error, "expected")?;
-        let got_js = get_js_value_key(scope, &error, "got")?;
+        let expected_js = get_js_value_key(scope, &kind_js, "expected")?;
+        let got_js = get_js_value_key(scope, &kind_js, "got")?;
 
-        let expected = nix_type_class_array_to_enum_array(scope, expected_js)?;
-        let got = nix_type_class_to_enum(scope, got_js)?;
+        let mut expected = nix_type_class_array_to_enum_array(scope, nixrt, expected_js)?;
+        let got = nix_type_class_to_enum(scope, nixrt, got_js)?;
+
+        // Sort expected array, for normalization
+        expected.sort_unstable();
 
         NixErrorKind::TypeMismatch { expected, got }
     } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixOtherError")? {
-        let message_js = get_js_value_key(scope, &error, "message")?;
+        let message_js = get_js_value_key(scope, &kind_js, "message")?;
         let message = message_js.to_rust_string_lossy(scope);
         NixErrorKind::Other { message }
     } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixMissingAttributeError")? {
-        let attr_path_js = get_js_value_key(scope, &error, "attrPath")?;
+        let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
         let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
         NixErrorKind::MissingAttribute { attr_path }
     } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixAttributeAlreadyDefinedError")? {
-        let attr_path_js = get_js_value_key(scope, &error, "attrPath")?;
+        let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
         let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
         NixErrorKind::AttributeAlreadyDefined { attr_path }
     } else if is_nixrt_type(
@@ -158,7 +173,7 @@ fn try_js_error_to_rust(
         &kind_js,
         "NixFunctionCallWithoutArgumentError",
     )? {
-        let argument_js = get_js_value_key(scope, &error, "argument")?;
+        let argument_js = get_js_value_key(scope, &kind_js, "argument")?;
         let argument = argument_js.to_rust_string_lossy(scope);
         NixErrorKind::FunctionCallWithoutArgument { argument }
     } else {
@@ -170,15 +185,16 @@ fn try_js_error_to_rust(
         });
     };
 
-    return Ok(NixError { message, kind });
+    Ok(NixError { message, kind })
 }
 
 fn nix_type_class_to_enum(
     scope: &mut v8::HandleScope,
+    nixrt: v8::Local<v8::Object>,
     class: v8::Local<v8::Value>,
 ) -> Result<NixTypeKind, NixError> {
     let name_fn = get_js_value_key(scope, &class, "toTypeName")?.try_into()?;
-    let name_js_str = call_js_function(scope, &name_fn, &[])?;
+    let name_js_str = call_js_function(scope, &name_fn, nixrt, &[])?;
     let name = name_js_str.to_rust_string_lossy(scope);
 
     match name.as_str() {
@@ -204,6 +220,7 @@ fn nix_type_class_to_enum(
 
 fn nix_type_class_array_to_enum_array(
     scope: &mut v8::HandleScope,
+    nixrt: v8::Local<v8::Object>,
     class_array: v8::Local<v8::Value>,
 ) -> Result<Vec<NixTypeKind>, NixError> {
     let class_array: v8::Local<v8::Array> = class_array.try_into()?;
@@ -219,7 +236,7 @@ fn nix_type_class_array_to_enum_array(
             .get_index(scope, i)
             .ok_or_else(|| format!("Expected index {i} not found."))?;
 
-        let kind = nix_type_class_to_enum(scope, item_class)?;
+        let kind = nix_type_class_to_enum(scope, nixrt, item_class)?;
         result.push(kind);
     }
 
@@ -245,6 +262,51 @@ fn js_string_array_to_rust_string_array(
 
         let item = item_js.to_rust_string_lossy(scope);
         result.push(item);
+    }
+
+    Ok(result)
+}
+
+fn js_error_message_part_to_rust(
+    scope: &mut v8::HandleScope,
+    error_part: v8::Local<v8::Value>,
+) -> Result<NixErrorMessagePart, NixError> {
+    let kind_js = get_js_value_key(scope, &error_part, "kind")?;
+    let kind = kind_js.to_rust_string_lossy(scope);
+
+    match kind.as_str() {
+        "plain" => {
+            let value_js = get_js_value_key(scope, &error_part, "value")?;
+            let value = value_js.to_rust_string_lossy(scope);
+            Ok(NixErrorMessagePart::Plain(value))
+        }
+        "highlighted" => {
+            let value_js = get_js_value_key(scope, &error_part, "value")?;
+            let value = value_js.to_rust_string_lossy(scope);
+            Ok(NixErrorMessagePart::Highlighted(value))
+        }
+        _ => Err("Unexpected error message part kind.".into()),
+    }
+}
+
+fn js_error_message_to_rust(
+    scope: &mut v8::HandleScope,
+    error: v8::Local<v8::Value>,
+) -> Result<Vec<NixErrorMessagePart>, NixError> {
+    let error: v8::Local<v8::Array> = error.try_into()?;
+
+    let len_num: v8::Local<v8::Number> = get_js_value_key(scope, &error, "length")?.try_into()?;
+    let len = len_num.value() as u32;
+
+    let mut result = Vec::with_capacity(len as usize);
+
+    for i in 0..len {
+        let error_part = error
+            .get_index(scope, i)
+            .ok_or_else(|| format!("Expected index {i} not found."))?;
+
+        let part = js_error_message_part_to_rust(scope, error_part)?;
+        result.push(part);
     }
 
     Ok(result)
