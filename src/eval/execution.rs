@@ -30,7 +30,7 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
 
     // Execute the Nix runtime JS module, get its exports
     let nixjs_rt_str = include_str!("../../nixjs-rt/dist/lib.mjs");
-    let nixjs_rt_obj = exec_module(nixjs_rt_str, scope).unwrap();
+    let nixjs_rt_obj = exec_module(nixjs_rt_str, scope)?;
 
     // Set them to a global variable
     let nixrt_attr = v8::String::new(scope, "n").unwrap();
