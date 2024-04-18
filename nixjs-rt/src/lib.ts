@@ -1,4 +1,4 @@
-import { getBuiltins } from "./errors/builtins";
+import { getBuiltins } from "./builtins";
 import { NixError, err } from "./errors";
 import {
   NixFunctionCallWithoutArgumentError,
