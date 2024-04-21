@@ -126,7 +126,7 @@ fn try_js_error_to_rust(
 
     let kind_js = get_js_value_key(scope, &error, "kind")?;
 
-    let err_constructor = get_js_value_key(scope, &error, "constructor")?;
+    let err_constructor = get_js_value_key(scope, &kind_js, "constructor")?;
     let err_name = get_js_value_key(scope, &err_constructor, "name")?;
 
     let kind = match err_name.to_rust_string_lossy(scope).as_str() {
