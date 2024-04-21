@@ -1,4 +1,7 @@
-use super::helpers::{call_js_function, get_js_value_key, is_nixrt_type};
+use super::{
+    helpers::{call_js_function, get_js_value_key, is_nixrt_type},
+    types::NixTypeKind,
+};
 
 #[derive(Debug)]
 pub struct NixError {
@@ -54,19 +57,6 @@ impl From<v8::DataError> for NixError {
 pub enum NixErrorMessagePart {
     Plain(String),
     Highlighted(String),
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum NixTypeKind {
-    Bool,
-    Float,
-    Int,
-    List,
-    Null,
-    String,
-    Path,
-    Lambda,
-    Set,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -136,53 +126,60 @@ fn try_js_error_to_rust(
 
     let kind_js = get_js_value_key(scope, &error, "kind")?;
 
-    let kind = if is_nixrt_type(scope, &nixrt, &kind_js, "NixAbortError")? {
-        let message_js = get_js_value_key(scope, &kind_js, "message")?;
-        let message = message_js.to_rust_string_lossy(scope);
-        NixErrorKind::Abort { message }
-    } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixCouldntFindVariableError")? {
-        let var_name_js = get_js_value_key(scope, &kind_js, "varName")?;
-        let var_name = var_name_js.to_rust_string_lossy(scope);
-        NixErrorKind::CouldntFindVariable { var_name }
-    } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixTypeMismatchError")? {
-        let expected_js = get_js_value_key(scope, &kind_js, "expected")?;
-        let got_js = get_js_value_key(scope, &kind_js, "got")?;
+    let err_constructor = get_js_value_key(scope, &error, "constructor")?;
+    let err_name = get_js_value_key(scope, &err_constructor, "name")?;
 
-        let mut expected = nix_type_class_array_to_enum_array(scope, nixrt, expected_js)?;
-        let got = nix_type_class_to_enum(scope, nixrt, got_js)?;
+    let kind = match err_name.to_rust_string_lossy(scope).as_str() {
+        "NixAbortError" => {
+            let message_js = get_js_value_key(scope, &kind_js, "message")?;
+            let message = message_js.to_rust_string_lossy(scope);
+            NixErrorKind::Abort { message }
+        }
+        "NixCouldntFindVariableError" => {
+            let var_name_js = get_js_value_key(scope, &kind_js, "varName")?;
+            let var_name = var_name_js.to_rust_string_lossy(scope);
+            NixErrorKind::CouldntFindVariable { var_name }
+        }
+        "NixTypeMismatchError" => {
+            let expected_js = get_js_value_key(scope, &kind_js, "expected")?;
+            let got_js = get_js_value_key(scope, &kind_js, "got")?;
 
-        // Sort expected array, for normalization
-        expected.sort_unstable();
+            let mut expected = nix_type_class_array_to_enum_array(scope, nixrt, expected_js)?;
+            let got = nix_type_class_to_enum(scope, nixrt, got_js)?;
 
-        NixErrorKind::TypeMismatch { expected, got }
-    } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixOtherError")? {
-        let message_js = get_js_value_key(scope, &kind_js, "message")?;
-        let message = message_js.to_rust_string_lossy(scope);
-        NixErrorKind::Other { message }
-    } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixMissingAttributeError")? {
-        let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
-        let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
-        NixErrorKind::MissingAttribute { attr_path }
-    } else if is_nixrt_type(scope, &nixrt, &kind_js, "NixAttributeAlreadyDefinedError")? {
-        let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
-        let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
-        NixErrorKind::AttributeAlreadyDefined { attr_path }
-    } else if is_nixrt_type(
-        scope,
-        &nixrt,
-        &kind_js,
-        "NixFunctionCallWithoutArgumentError",
-    )? {
-        let argument_js = get_js_value_key(scope, &kind_js, "argument")?;
-        let argument = argument_js.to_rust_string_lossy(scope);
-        NixErrorKind::FunctionCallWithoutArgument { argument }
-    } else {
-        return Ok(NixError {
-            message: vec![NixErrorMessagePart::Plain("An error occurred.".to_owned())],
-            kind: NixErrorKind::UnexpectedJsError {
-                message: error.to_rust_string_lossy(scope),
-            },
-        });
+            // Sort expected array, for normalization
+            expected.sort_unstable();
+
+            NixErrorKind::TypeMismatch { expected, got }
+        }
+        "NixOtherError" => {
+            let message_js = get_js_value_key(scope, &kind_js, "message")?;
+            let message = message_js.to_rust_string_lossy(scope);
+            NixErrorKind::Other { message }
+        }
+        "NixMissingAttributeError" => {
+            let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
+            let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
+            NixErrorKind::MissingAttribute { attr_path }
+        }
+        "NixAttributeAlreadyDefinedError" => {
+            let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
+            let attr_path = js_string_array_to_rust_string_array(scope, attr_path_js)?;
+            NixErrorKind::AttributeAlreadyDefined { attr_path }
+        }
+        "NixFunctionCallWithoutArgumentError" => {
+            let argument_js = get_js_value_key(scope, &kind_js, "argument")?;
+            let argument = argument_js.to_rust_string_lossy(scope);
+            NixErrorKind::FunctionCallWithoutArgument { argument }
+        }
+        _ => {
+            return Ok(NixError {
+                message: vec![NixErrorMessagePart::Plain("An error occurred.".to_owned())],
+                kind: NixErrorKind::UnexpectedJsError {
+                    message: error.to_rust_string_lossy(scope),
+                },
+            });
+        }
     };
 
     Ok(NixError { message, kind })

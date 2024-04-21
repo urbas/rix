@@ -17,6 +17,19 @@ pub enum Value {
     Str(String),
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NixTypeKind {
+    Bool,
+    Float,
+    Int,
+    List,
+    Null,
+    String,
+    Path,
+    Lambda,
+    Set,
+}
+
 pub type EvalResult = Result<Value, NixError>;
 
 pub fn js_value_to_nix(
