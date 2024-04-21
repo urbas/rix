@@ -23,5 +23,5 @@ fn dispatch_cmd(parsed_args: &clap::ArgMatches, subcommands: &[&cmd::RixSubComma
                 .map_or_else(|err| err, |_| ExitCode::SUCCESS);
         }
     }
-    cmd::print_and_err("operation not supported")
+    cmd::print_and_err("operation not supported".into())
 }

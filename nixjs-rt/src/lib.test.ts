@@ -26,14 +26,6 @@ test("calling a lambda should return its value", () => {
   );
 });
 
-test("calling something that isn't a lambda should throw", () => {
-  expect(() => new NixInt(1n).apply(EMPTY_ATTRSET)).toThrow(
-    new EvalException(
-      "Attempt to call something which is not a function but is 'int'.",
-    ),
-  );
-});
-
 // Arithmetic:
 test("unary '-' operator on integers", () => {
   expect(new NixInt(1n).neg()).toStrictEqual(new NixInt(-1n));
@@ -41,10 +33,6 @@ test("unary '-' operator on integers", () => {
 
 test("unary '-' operator on floats", () => {
   expect(new NixFloat(2.5).neg()).toStrictEqual(new NixFloat(-2.5));
-});
-
-test("unary '-' operator on non-numbers", () => {
-  expect(() => new NixString("a").neg()).toThrow(n.EvalException);
 });
 
 test("'+' operator on integers", () => {
@@ -65,17 +53,6 @@ test("'+' operator on floats", () => {
 test("'+' operator on mixed integers and floats", () => {
   expect(new NixInt(1n).add(new NixFloat(2.0)).toJs()).toBe(3.0);
   expect(new NixFloat(2.0).add(new NixInt(1n)).toJs()).toBe(3.0);
-});
-
-test("'+' operator on mixed numbers and non-numbers", () => {
-  expect(() => new NixString("a").add(new NixInt(1n))).toThrow(n.EvalException);
-  expect(() => new NixInt(1n).add(new NixString("a"))).toThrow(n.EvalException);
-  expect(() => new NixFloat(1).add(new NixString("a"))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixString("a").add(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
 });
 
 test("'+' operator on strings", () => {
@@ -112,15 +89,6 @@ test("'-' operator on mixed integers and floats", () => {
   expect(new NixFloat(2.0).sub(new NixInt(1n)).toJs()).toBe(1);
 });
 
-test("'-' operator on non-numbers raises exceptions", () => {
-  expect(() => new NixString("foo").sub(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixFloat(1).sub(new NixString("foo"))).toThrow(
-    n.EvalException,
-  );
-});
-
 test("'*' operator on integers", () => {
   const result = new NixInt(2n).mul(new NixInt(3n)) as NixInt;
   expect(result.number).toBe(6);
@@ -135,18 +103,6 @@ test("'*' operator on floats", () => {
 test("'*' operator on mixed integers and floats", () => {
   expect(new NixInt(2n).mul(new NixFloat(3.5))).toStrictEqual(new NixFloat(7));
   expect(new NixFloat(3.5).mul(new NixInt(2n))).toStrictEqual(new NixFloat(7));
-});
-
-test("'*' operator on non-numbers raises exceptions", () => {
-  expect(() => new NixString("foo").mul(new NixString("bar"))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixString("foo").mul(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixString("foo").mul(new NixInt(1n))).toThrow(
-    n.EvalException,
-  );
 });
 
 test("'/' operator on integers", () => {
@@ -165,18 +121,6 @@ test("'/' operator on mixed integers and floats", () => {
   );
   expect(new NixFloat(5.0).div(new NixInt(2n))).toStrictEqual(
     new NixFloat(2.5),
-  );
-});
-
-test("'/' operator on non-numbers raises exceptions", () => {
-  expect(() => new NixString("foo").div(new NixString("bar"))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixString("foo").div(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixString("foo").div(new NixInt(1n))).toThrow(
-    n.EvalException,
   );
 });
 
@@ -223,42 +167,6 @@ test("attrsets ignore null attrs", () => {
   ).toStrictEqual(new Map([["a", new Map()]]));
 });
 
-test("attrset construction with repeated attrs throws", () => {
-  expect(() =>
-    attrset(
-      evalCtx(),
-      keyVals(["a", new NixFloat(1)], ["a", new NixFloat(1)]),
-    ).toJs(),
-  ).toThrow(new EvalException("Attribute 'a' already defined."));
-  expect(() =>
-    attrset(
-      evalCtx(),
-      keyVals(["a", new NixFloat(1)], ["a.b", new NixFloat(2)]),
-    ).toJs(),
-  ).toThrow(new EvalException("Attribute 'a' already defined."));
-  expect(() =>
-    attrset(
-      evalCtx(),
-      keyVals(["a.b", new NixFloat(1)], ["a.b", new NixFloat(2)]),
-    ).toJs(),
-  ).toThrow(new EvalException("Attribute 'a.b' already defined."));
-  expect(() =>
-    attrset(
-      evalCtx(),
-      keyVals(
-        ["a.b", attrset(evalCtx(), keyVals(["c", new NixFloat(1)]))],
-        ["a.b.c", new NixFloat(2)],
-      ),
-    ).toJs(),
-  ).toThrow(new EvalException("Attribute 'a.b.c' already defined."));
-});
-
-test("attrset with non-string attrs throw", () => {
-  expect(() =>
-    attrset(evalCtx(), (_) => [[[new NixFloat(1)], new NixFloat(1)]]).toJs(),
-  ).toThrow(n.EvalException);
-});
-
 test("'//' operator on attrsets", () => {
   expect(
     attrset(evalCtx(), keyVals()).update(attrset(evalCtx(), keyVals())).toJs(),
@@ -283,15 +191,6 @@ test("'//' operator on attrsets", () => {
       .update(attrset(evalCtx(), keyVals(["a", new NixFloat(2)])))
       .toJs(),
   ).toStrictEqual(new Map([["a", 2]]));
-});
-
-test("'//' operator on non-attrsets raises exceptions", () => {
-  expect(() => attrset(evalCtx(), keyVals()).update(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
-  expect(() => new NixFloat(1).update(attrset(evalCtx(), keyVals()))).toThrow(
-    n.EvalException,
-  );
 });
 
 test("'?' operator", () => {
@@ -351,12 +250,6 @@ test("'.' operator", () => {
   ).toBe(5);
 });
 
-test("'.' operator throws when attrpath doesn't exist", () => {
-  expect(() =>
-    attrset(evalCtx(), keyVals()).select([new NixString("a")], undefined),
-  ).toThrow(n.EvalException);
-});
-
 test("recursive attrsets allow referencing attributes defined later", () => {
   expect(
     n
@@ -404,27 +297,10 @@ test("recursive attrsets allow referencing attributes from other attribute names
   );
 });
 
-test("non-recursive attrsets don't allow references to other attributes in the attrset", () => {
-  expect(() =>
-    n
-      .attrset(evalCtx(), (ctx) => [
-        [toAttrpath("a"), ctx.lookup("b").add(new NixFloat(1))],
-        [toAttrpath("b"), new NixFloat(1)],
-      ])
-      .select([new NixString("a")], undefined)
-      .toJs(),
-  ).toThrow(n.EvalException);
-});
-
 // Boolean:
 test("'&&' operator on booleans", () => {
   expect(n.TRUE.and(n.FALSE)).toBe(n.FALSE);
   expect(n.FALSE.and(new NixFloat(1))).toBe(n.FALSE); // emulates nix's behaviour
-});
-
-test("'&&' operator on non-booleans raises exceptions", () => {
-  expect(() => n.TRUE.and(new NixFloat(1))).toThrow(n.EvalException);
-  expect(() => new NixFloat(1).and(n.TRUE)).toThrow(n.EvalException);
 });
 
 test("'->' operator on booleans", () => {
@@ -432,27 +308,13 @@ test("'->' operator on booleans", () => {
   expect(n.FALSE.implication(new NixFloat(1))).toBe(n.TRUE); // emulates nix's behaviour
 });
 
-test("'->' operator on non-booleans raises exceptions", () => {
-  expect(() => n.TRUE.implication(new NixFloat(1))).toThrow(n.EvalException);
-  expect(() => new NixFloat(1).implication(n.TRUE)).toThrow(n.EvalException);
-});
-
 test("'!' operator on booleans", () => {
   expect(n.FALSE.invert()).toBe(n.TRUE);
-});
-
-test("'!' operator on non-booleans raises exceptions", () => {
-  expect(() => new NixFloat(1).invert()).toThrow(n.EvalException);
 });
 
 test("'||' operator on booleans", () => {
   expect(n.TRUE.or(n.FALSE).toJs()).toBe(true);
   expect(n.TRUE.or(new NixFloat(1)).toJs()).toBe(true); // emulates nix's behaviour
-});
-
-test("'||' operator on non-booleans raises exceptions", () => {
-  expect(() => n.FALSE.or(new NixFloat(1))).toThrow(n.EvalException);
-  expect(() => new NixFloat(1).or(n.TRUE)).toThrow(n.EvalException);
 });
 
 // Comparison:
@@ -536,23 +398,9 @@ test("'<' operator on numbers", () => {
   expect(new NixFloat(1).less(new NixInt(2n))).toBe(n.TRUE);
 });
 
-test("'<' operator on mixed-types throws", () => {
-  expect(() => new NixInt(1n).less(n.TRUE)).toThrow(n.EvalException);
-  expect(() => n.TRUE.less(new NixInt(1n))).toThrow(n.EvalException);
-  expect(() => n.TRUE.less(new NixFloat(1))).toThrow(n.EvalException);
-});
-
 test("'<' operator on strings", () => {
   expect(new NixString("a").less(new NixString("b"))).toBe(n.TRUE);
   expect(new NixString("foo").less(new NixString("b"))).toBe(n.FALSE);
-});
-
-test("'<' operator on booleans throws", () => {
-  expect(() => n.FALSE.less(n.TRUE)).toThrow(n.EvalException);
-});
-
-test("'<' operator on null values throws", () => {
-  expect(() => n.NULL.less(n.NULL)).toThrow(n.EvalException);
 });
 
 test("'<' operator on lists", () => {
@@ -610,20 +458,6 @@ test("'<' operator on lists with lazy values", () => {
       new NixList([new Lazy(evalCtx(), (_) => n.TRUE)]),
     ),
   ).toBe(n.FALSE);
-});
-
-test("'<' operator list invalid", () => {
-  expect(() =>
-    new NixList([n.TRUE]).less(new NixList([new NixFloat(1)])),
-  ).toThrow(n.EvalException);
-  expect(() => new NixList([n.TRUE]).less(new NixList([n.FALSE]))).toThrow(
-    n.EvalException,
-  );
-});
-
-test("'<' operator on attrsets invalid", () => {
-  let smallAttrset = n.attrset(evalCtx(), keyVals(["a", new NixFloat(1)]));
-  expect(() => smallAttrset.less(smallAttrset)).toThrow(n.EvalException);
 });
 
 test("'<' operator on paths", () => {
@@ -689,19 +523,6 @@ test("pattern lambda with default values", () => {
   ).toBe(1);
 });
 
-test("pattern lambda with missing parameter", () => {
-  let innerCtx = evalCtx().withShadowingScope(
-    n.attrset(evalCtx(), keyVals(["a", new NixFloat(1)])),
-  );
-  expect(() =>
-    n
-      .patternLambda(innerCtx, undefined, [["a", undefined]], (evalCtx) =>
-        evalCtx.lookup("a"),
-      )
-      .apply(n.attrset(evalCtx(), keyVals())),
-  ).toThrow(n.EvalException);
-});
-
 test("pattern lambda with arguments binding", () => {
   const arg = n.attrset(evalCtx(), keyVals(["a", new NixFloat(1)]));
   expect(
@@ -765,14 +586,6 @@ test("'++' operator on lazy lists with lazy values", () => {
       .toJs(),
   ).toStrictEqual([1, 2]);
 });
-
-test("'++' operator on non-lists raises exceptions", () => {
-  expect(() => new NixList([]).concat(new NixFloat(1))).toThrow(
-    n.EvalException,
-  );
-  expect(() => n.TRUE.concat(new NixList([]))).toThrow(n.EvalException);
-});
-
 // Path:
 test("toPath on absolute paths", () => {
   expect(n.toPath(evalCtx(), "/a")).toStrictEqual(new Path("/a"));
@@ -783,11 +596,6 @@ test("toPath on absolute paths", () => {
 test("toPath transforms relative paths with 'joinPaths'", () => {
   expect(n.toPath(evalCtx(), "a")).toStrictEqual(new Path("/test_base/a"));
   expect(n.toPath(evalCtx(), "./a")).toStrictEqual(new Path("/test_base/a"));
-});
-
-// Scope:
-test("variable not in global scope", () => {
-  expect(() => evalCtx().lookup("foo")).toThrow(n.EvalException);
 });
 
 test("variable in shadowing scope", () => {

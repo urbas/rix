@@ -2,7 +2,7 @@
 mod tests {
     use std::collections::HashMap;
 
-    use crate::eval::types::Value;
+    use crate::eval::{error::NixErrorKind, types::Value};
 
     use super::super::execution::*;
 
@@ -330,10 +330,12 @@ mod tests {
     #[test]
     fn test_eval_builtin_abort() {
         let error_msg = evaluate(r#"abort "foo""#).unwrap_err();
-        let expected_msg = "Evaluation aborted with the following error message: 'foo'";
-        assert!(
-            error_msg.contains(expected_msg),
-            "Error message '{error_msg}' didn't contain '{expected_msg}'."
+        let expected_msg = "foo";
+        assert_eq!(
+            error_msg.kind,
+            NixErrorKind::Abort {
+                message: expected_msg.to_owned()
+            }
         );
     }
 

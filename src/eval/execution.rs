@@ -7,7 +7,8 @@ use v8::{HandleScope, Local, ModuleStatus, Object};
 use crate::eval::types::EvalResult;
 
 use super::emit_js::emit_module;
-use super::helpers::{get_nixrt_type, try_get_js_object_key};
+use super::error::NixError;
+use super::helpers::{call_js_function, get_nixrt_type, try_get_js_object_key};
 use super::types::js_value_to_nix;
 
 static INIT_V8: Once = Once::new();
@@ -29,7 +30,7 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
 
     // Execute the Nix runtime JS module, get its exports
     let nixjs_rt_str = include_str!("../../nixjs-rt/dist/lib.mjs");
-    let nixjs_rt_obj = exec_module(nixjs_rt_str, scope).unwrap();
+    let nixjs_rt_obj = exec_module(nixjs_rt_str, scope)?;
 
     // Set them to a global variable
     let nixrt_attr = v8::String::new(scope, "n").unwrap();
@@ -45,10 +46,11 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
 fn nix_expr_to_js_function<'s>(
     scope: &mut HandleScope<'s>,
     nix_expr: &str,
-) -> Result<v8::Local<'s, v8::Function>, String> {
+) -> Result<v8::Local<'s, v8::Function>, NixError> {
     let source_str = emit_module(nix_expr)?;
     let module_source_v8 = to_v8_source(scope, &source_str, "<eval string>");
-    let module = v8::script_compiler::compile_module(scope, module_source_v8).unwrap();
+    let module = v8::script_compiler::compile_module(scope, module_source_v8)
+        .ok_or("Failed to compile the module.")?;
 
     if module
         .instantiate_module(scope, resolve_module_callback)
@@ -68,7 +70,10 @@ fn nix_expr_to_js_function<'s>(
         todo!("evaluation failed:\n{}", string);
     }
 
-    let namespace_obj = module.get_module_namespace().to_object(scope).unwrap();
+    let namespace_obj = module
+        .get_module_namespace()
+        .to_object(scope)
+        .ok_or("Failed to get the module namespace.")?;
 
     let Some(nix_value) = try_get_js_object_key(scope, &namespace_obj.into(), "default")? else {
         todo!(
@@ -95,7 +100,7 @@ fn import_nix_module<'s>(
     let nix_fn = match nix_fn {
         Ok(nix_fn) => nix_fn,
         Err(err) => {
-            let err_str = v8::String::new(scope, &err).unwrap();
+            let err_str = v8::String::new(scope, &err.to_string()).unwrap();
             let err_obj = v8::Exception::error(scope, err_str);
             ret.set(err_obj);
             return;
@@ -108,22 +113,26 @@ fn import_nix_module<'s>(
 fn exec_module<'a>(
     code: &str,
     scope: &mut v8::HandleScope<'a>,
-) -> Result<Local<'a, Object>, String> {
+) -> Result<Local<'a, Object>, NixError> {
     let source = to_v8_source(scope, code, "<eval string>");
-    let module = v8::script_compiler::compile_module(scope, source).unwrap();
+    let module = v8::script_compiler::compile_module(scope, source)
+        .ok_or("Failed to compile the module.")?;
 
     if module
         .instantiate_module(scope, resolve_module_callback)
         .is_none()
     {
-        return Err("Instantiation failure.".to_owned());
+        return Err("Instantiation failure.".to_owned().into());
     }
 
     if module.evaluate(scope).is_none() {
-        return Err("Evaluation failure.".to_owned());
+        return Err("Evaluation failure.".to_owned().into());
     }
 
-    let obj = module.get_module_namespace().to_object(scope).unwrap();
+    let obj = module
+        .get_module_namespace()
+        .to_object(scope)
+        .ok_or("Failed to get the module namespace.")?;
 
     Ok(obj)
 }
@@ -151,35 +160,16 @@ fn nix_value_from_module(
         })?,
     )?;
 
-    let nix_value = call_js_function(scope, &nix_value, &[eval_ctx.into()])?;
+    let nix_value = call_js_function(scope, &nix_value, nixjs_rt_obj, &[eval_ctx.into()])?;
 
     let to_strict_fn: v8::Local<v8::Function> =
         try_get_js_object_key(scope, &nixrt, "recursiveStrict")?
             .expect("Could not find the function `recursiveStrict` in `nixrt`.")
             .try_into()
             .expect("`n.recursiveStrict` is not a function.");
-    let strict_nix_value = call_js_function(scope, &to_strict_fn, &[nix_value])?;
+    let strict_nix_value = call_js_function(scope, &to_strict_fn, nixjs_rt_obj, &[nix_value])?;
 
     js_value_to_nix(scope, &nixrt, &strict_nix_value)
-}
-
-fn call_js_function<'s>(
-    scope: &mut v8::ContextScope<'_, v8::HandleScope<'s>>,
-    js_function: &v8::Local<v8::Function>,
-    args: &[v8::Local<v8::Value>],
-) -> Result<v8::Local<'s, v8::Value>, String> {
-    let scope = &mut v8::TryCatch::new(scope);
-    let recv = v8::undefined(scope).into();
-    let Some(strict_nix_value) = js_function.call(scope, recv, args) else {
-        // TODO: Again, the stack trace needs to be source-mapped. See TODO above.
-        let err_msg = scope
-            .stack_trace()
-            .map_or("Unknown evaluation error.".to_owned(), |stack| {
-                stack.to_rust_string_lossy(scope)
-            });
-        return Err(err_msg);
-    };
-    Ok(strict_nix_value)
 }
 
 fn create_eval_ctx<'s>(

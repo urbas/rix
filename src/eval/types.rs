@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use super::helpers::{is_nixrt_type, try_get_js_object_key};
+use super::{
+    error::NixError,
+    helpers::{is_nixrt_type, try_get_js_object_key},
+};
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
@@ -14,7 +17,7 @@ pub enum Value {
     Str(String),
 }
 
-pub type EvalResult = Result<Value, String>;
+pub type EvalResult = Result<Value, NixError>;
 
 pub fn js_value_to_nix(
     scope: &mut v8::HandleScope<'_>,
@@ -61,7 +64,7 @@ fn from_js_int(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixInt")? {
         let Some(int64_js_value) = try_get_js_object_key(scope, js_value, "int64")? else {
             return Ok(None);
@@ -78,7 +81,7 @@ fn from_js_string(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixString")? {
         let Some(value) = try_get_js_object_key(scope, js_value, "value")? else {
             return Ok(None);
@@ -97,7 +100,7 @@ fn from_js_lazy(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "Lazy")? {
         let to_strict = try_get_js_object_key(scope, js_value, "toStrict")?.ok_or_else(|| {
             "Internal error: could not find the `toStrict` method on the Lazy object.".to_string()
@@ -119,7 +122,7 @@ fn from_js_bool(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixBool")? {
         let value = try_get_js_object_key(scope, js_value, "value")?.ok_or_else(|| {
             "Internal error: could not find the `value` property on the NixBool object.".to_string()
@@ -138,7 +141,7 @@ fn from_js_float(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixFloat")? {
         let value = try_get_js_object_key(scope, js_value, "value")?.ok_or_else(|| {
             "Internal error: could not find the `value` property on the NixFloat object."
@@ -162,7 +165,7 @@ fn from_js_attrset(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "Attrset")? {
         let underlying_map_value = try_get_js_object_key(scope, js_value, "underlyingMap")?
             .ok_or_else(|| {
@@ -192,7 +195,7 @@ fn from_js_list(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixList")? {
         let value = try_get_js_object_key(scope, js_value, "values")?.ok_or_else(|| {
             "Internal error: could not find the `values` property on the NixList object."
@@ -212,7 +215,7 @@ fn from_js_path(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if !is_nixrt_type(scope, nixrt, js_value, "Path")? {
         return Ok(None);
     }
@@ -226,7 +229,7 @@ fn from_js_lambda(
     scope: &mut v8::HandleScope<'_>,
     nixrt: &v8::Local<v8::Value>,
     js_value: &v8::Local<v8::Value>,
-) -> Result<Option<Value>, String> {
+) -> Result<Option<Value>, NixError> {
     if !is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
         return Ok(None);
     }
