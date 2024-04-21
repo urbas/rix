@@ -132,7 +132,7 @@ export function errType(type: NixTypeClass | NixTypeInstance): ErrorMessage {
  */
 export function errTypes(...types: NixTypeClass[]): ErrorMessage {
   if (types.length === 0) {
-    throw new Error("classListToErrorMessage: types array is empty");
+    throw new Error("errTypes: types array is empty");
   }
 
   if (types.length === 1) {
