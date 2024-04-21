@@ -1,5 +1,5 @@
 import { getBuiltins } from "./builtins";
-import { NixError, err } from "./errors";
+import { NixError, err, errType } from "./errors";
 import {
   NixFunctionCallWithoutArgumentError,
   functionCallWithoutArgumentError,
@@ -131,7 +131,10 @@ export abstract class NixType {
    * This method implements the `+` operator. It adds the `rhs` value to this value.
    */
   add(rhs: NixType): NixType {
-    throw invalidTypeError(this, err`Cannot add ${rhs} to ${this}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot add ${errType(rhs)} to ${errType(this)}`,
+    );
   }
 
   and(rhs: NixType): NixBool {
@@ -141,7 +144,7 @@ export abstract class NixType {
   apply(param: NixType): NixType {
     throw invalidTypeError(
       this,
-      err`Attempt to call something which is not a function but is ${this}`,
+      err`Attempt to call something which is not a function but is ${errType(this)}`,
     );
   }
 
@@ -154,11 +157,17 @@ export abstract class NixType {
   }
 
   concat(other: NixType): NixList {
-    throw invalidTypeError(this, err`Cannot concatenate ${this} and ${other}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot concatenate ${errType(this)} and ${errType(other)}`,
+    );
   }
 
   div(rhs: NixType): NixInt | NixFloat {
-    throw invalidTypeError(this, err`Cannot divide ${this} and ${rhs}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot divide ${errType(this)} with ${errType(rhs)}`,
+    );
   }
 
   /**
@@ -184,7 +193,10 @@ export abstract class NixType {
    * This method implements the `<` operator. It checks whether the `rhs` value is lower than this value.
    */
   less(rhs: NixType): NixBool {
-    throw invalidTypeError(this, err`Cannot compare ${this} with ${rhs}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot compare ${errType(this)} with ${errType(rhs)}`,
+    );
   }
 
   lessEq(rhs: NixType): NixBool {
@@ -200,11 +212,14 @@ export abstract class NixType {
   }
 
   mul(rhs: NixType): NixInt | NixFloat {
-    throw invalidTypeError(this, err`Cannot multiply ${this} and ${rhs}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot multiply ${errType(this)} with ${errType(rhs)}`,
+    );
   }
 
   neg(): NixInt | NixFloat {
-    throw invalidTypeError(this, err`Cannot negate ${this}`);
+    throw invalidTypeError(this, err`Cannot negate ${errType(this)}`);
   }
 
   neq(rhs: NixType): NixBool {
@@ -216,14 +231,20 @@ export abstract class NixType {
   }
 
   select(attrPath: NixType[], defaultValue: NixType | undefined): NixType {
-    throw invalidTypeError(this, err`Cannot select attribute from ${this}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot select attribute from ${errType(this)}`,
+    );
   }
 
   /**
    * This method implements the `-` operator. It subtracts the `rhs` value from this value.
    */
   sub(rhs: NixType): NixInt | NixFloat {
-    throw invalidTypeError(this, err`Cannot subtract ${this} and ${rhs}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot subtract ${errType(rhs)} from ${errType(this)}`,
+    );
   }
 
   /**
@@ -271,7 +292,10 @@ export abstract class NixType {
    * right-hand-side attrset override values from this attrset.
    */
   update(rhs: NixType): Attrset {
-    throw invalidTypeError(this, err`Cannot merge ${this} with ${rhs}`);
+    throw invalidTypeError(
+      this,
+      err`Cannot merge ${errType(this)} with ${errType(rhs)}`,
+    );
   }
 }
 
@@ -342,7 +366,7 @@ export abstract class Attrset extends NixType implements Scope {
       throw typeMismatchError(
         attrName,
         NixString,
-        err`Attribute name must be ${NixString}, but ${attrName} was given.`,
+        err`Attribute name must be ${errType(NixString)}, but got ${errType(attrName)}`,
       );
     }
     return this.lookup(attrName.value);
@@ -591,7 +615,7 @@ function _assertIsMergeable(value: NixType, attrPath: string[]): Attrset {
     throw typeMismatchError(
       valueStrict,
       Attrset,
-      err`Cannot merge ${valueStrict}, expected ${Attrset}`,
+      err`Cannot merge ${errType(valueStrict)} with ${errType(Attrset)}`,
     );
   }
   return valueStrict;

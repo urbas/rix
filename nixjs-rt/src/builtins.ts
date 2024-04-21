@@ -1,4 +1,4 @@
-import { err } from "./errors";
+import { err, errType, errTypes } from "./errors";
 import { abortError } from "./errors/abort";
 import { otherError } from "./errors/other";
 import { typeMismatchError } from "./errors/typeError";
@@ -14,11 +14,28 @@ import {
   NixList,
   NixString,
   NixType,
+  NixTypeClass,
   Path,
   TRUE,
 } from "./lib";
 
 type BuiltinsRecord = Record<string, (param: NixType) => NixType>;
+
+function builtinBasicTypeMismatchError(
+  fnName: string,
+  got: NixType,
+  expects: NixTypeClass | NixTypeClass[],
+) {
+  if (!Array.isArray(expects)) {
+    expects = [expects];
+  }
+
+  return typeMismatchError(
+    got,
+    expects,
+    err`${fnName} expects ${errTypes(...expects)}, got ${errType(got)}.`,
+  );
+}
 
 export function getBuiltins() {
   const builtins: BuiltinsRecord = {
@@ -31,11 +48,7 @@ export function getBuiltins() {
 
       if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
         const expected = [Path, NixString];
-        throw typeMismatchError(
-          pathStrict,
-          expected,
-          err`Import statement expected ${expected}, but got ${pathStrict}.`,
-        );
+        throw builtinBasicTypeMismatchError("import", pathStrict, expected);
       }
 
       const pathValue = pathStrict.toJs();
@@ -53,20 +66,12 @@ export function getBuiltins() {
         let lhsStrict = lhs.toStrict();
         if (!(lhsStrict instanceof NixInt || lhsStrict instanceof NixFloat)) {
           let expected = [NixInt, NixFloat];
-          throw typeMismatchError(
-            lhsStrict,
-            expected,
-            err`Cannot add '${lhsStrict}', expected ${expected}.`,
-          );
+          throw builtinBasicTypeMismatchError("add", lhsStrict, expected);
         }
         let rhsStrict = rhs.toStrict();
         if (!(rhsStrict instanceof NixInt || rhsStrict instanceof NixFloat)) {
           let expected = [NixInt, NixFloat];
-          throw typeMismatchError(
-            rhsStrict,
-            expected,
-            err`Cannot add '${lhsStrict}', expected ${expected}.`,
-          );
+          throw builtinBasicTypeMismatchError("add", rhsStrict, expected);
         }
         return lhsStrict.add(rhsStrict);
       });
@@ -78,7 +83,7 @@ export function getBuiltins() {
         throw typeMismatchError(
           listStrict,
           NixList,
-          err`Cannot apply the 'head' function on '${listStrict}', expected ${NixList}.`,
+          err`Cannot apply the 'head' function on '${errType(listStrict)}', expected ${errType(NixList)}.`,
         );
       }
       if (listStrict.values.length === 0) {
@@ -90,21 +95,13 @@ export function getBuiltins() {
     all: (pred) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
-        throw typeMismatchError(
-          lambdaStrict,
-          Lambda,
-          err`'all' function requires ${Lambda}, but got ${lambdaStrict} instead.`,
-        );
+        throw builtinBasicTypeMismatchError("all", lambdaStrict, Lambda);
       }
 
       return new Lambda((list) => {
         const listStrict = list.toStrict();
         if (!(listStrict instanceof NixList)) {
-          throw typeMismatchError(
-            listStrict,
-            NixList,
-            err`'all' function expects ${NixList}, got '${listStrict.typeOf()}'.`,
-          );
+          throw builtinBasicTypeMismatchError("all", listStrict, NixList);
         }
 
         for (const element of listStrict.values) {
@@ -121,21 +118,13 @@ export function getBuiltins() {
     any: (pred) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
-        throw typeMismatchError(
-          lambdaStrict,
-          Lambda,
-          err`'any' function requires ${Lambda}, but got ${lambdaStrict} instead.`,
-        );
+        throw builtinBasicTypeMismatchError("any", lambdaStrict, Lambda);
       }
 
       return new Lambda((list) => {
         const listStrict = list.toStrict();
         if (!(listStrict instanceof NixList)) {
-          throw typeMismatchError(
-            listStrict,
-            NixList,
-            err`'any' function expects ${NixList}, got '${listStrict}'.`,
-          );
+          throw builtinBasicTypeMismatchError("any", listStrict, NixList);
         }
 
         for (const element of listStrict.values) {
@@ -152,10 +141,10 @@ export function getBuiltins() {
     attrNames: (attrset) => {
       const attrsetStrict = attrset.toStrict();
       if (!(attrsetStrict instanceof Attrset)) {
-        throw typeMismatchError(
+        throw builtinBasicTypeMismatchError(
+          "attrNames",
           attrsetStrict,
           Attrset,
-          err`'attrNames' function expects ${Attrset}, got '${attrsetStrict}'.`,
         );
       }
 
@@ -168,10 +157,10 @@ export function getBuiltins() {
     attrValues: (attrset) => {
       const attrsetStrict = attrset.toStrict();
       if (!(attrsetStrict instanceof Attrset)) {
-        throw typeMismatchError(
+        throw builtinBasicTypeMismatchError(
+          "attrValues",
           attrsetStrict,
           Attrset,
-          err`'attrValues' function expects ${Attrset}, got '${attrsetStrict}'.`,
         );
       }
 

@@ -3,7 +3,8 @@ import {
   err,
   NixError,
   instanceToClass,
-  classListToErrorMessage,
+  errType,
+  errTypes,
 } from ".";
 import { NixTypeClass, NixTypeInstance } from "../lib";
 
@@ -14,7 +15,7 @@ export class NixTypeMismatchError {
   ) {}
 
   toDefaultErrorMessage(): ErrorMessage {
-    return err`Expected ${classListToErrorMessage(this.expected)}, but got ${this.got}`;
+    return err`Expected ${errTypes(...this.expected)}, but got ${errType(this.got)}`;
   }
 }
 
