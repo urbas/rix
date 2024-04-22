@@ -75,12 +75,7 @@ export function stringifyErrorMessage(message: ErrorMessage): string {
   return message.map((part) => part.value).join("");
 }
 
-type ErrorMessageBuilderPart =
-  | string
-  // | NixTypeClass
-  // | NixTypeClass[]
-  // | NixTypeInstance
-  | ErrorMessage;
+type ErrorMessageBuilderPart = string | ErrorMessage;
 
 function builderPartToErrMessage(part: ErrorMessageBuilderPart): ErrorMessage {
   if (typeof part === "string") {

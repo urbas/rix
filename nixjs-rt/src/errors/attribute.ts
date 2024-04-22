@@ -18,7 +18,7 @@ export class NixMissingAttributeError {
   constructor(public readonly attrPath: string[]) {}
 
   toDefaultErrorMessage(): ErrorMessage {
-    return err`Attribute '${highlighted(this.attrPath.join("."))}' is missing'`;
+    return err`Attribute '${highlighted(this.attrPath.join("."))}' is missing`;
   }
 }
 

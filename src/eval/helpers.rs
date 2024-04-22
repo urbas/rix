@@ -77,9 +77,6 @@ pub fn call_js_function<'s>(
         // TODO: Again, the stack trace needs to be source-mapped.
         if let Some(error) = try_scope.exception() {
             let error = js_error_to_rust(try_scope, nixrt, error);
-
-            dbg!(&error);
-
             return Err(error);
         } else {
             return Err("Unknown evaluation error.".into());
