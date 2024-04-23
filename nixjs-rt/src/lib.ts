@@ -153,7 +153,7 @@ export abstract class NixType {
   }
 
   asString(): string {
-    throw typeMismatchError(this, NixString);
+    throw typeMismatchError(this, [NixString, Path]);
   }
 
   concat(other: NixType): NixList {
@@ -956,6 +956,9 @@ export class NixString extends NixType {
     if (rhs instanceof NixString) {
       return new NixString(this.value + rhs.value);
     }
+    if (rhs instanceof Path) {
+      return new NixString(normalizePath(this.value + rhs.path));
+    }
     return super.add(rhs);
   }
 
@@ -1021,6 +1024,10 @@ export class Path extends NixType {
       return super.less(rhs);
     }
     return _nixBoolFromJs(this.path < rhs.path);
+  }
+
+  asString(): string {
+    return this.path;
   }
 
   toJs() {
