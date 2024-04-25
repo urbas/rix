@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[test]
-fn test_eval_int_literals() {
+fn eval_int_literals() {
     assert_eq!(eval_ok("1"), Value::Int(1));
     assert_eq!(eval_ok("-1"), Value::Int(-1));
     assert_eq!(eval_ok("0"), Value::Int(0));
@@ -27,7 +27,7 @@ fn test_eval_int_literals() {
 }
 
 #[test]
-fn test_eval_float_literals() {
+fn eval_float_literals() {
     assert_eq!(eval_ok("1.0"), Value::Float(1.0));
     assert_eq!(eval_ok("-1.0"), Value::Float(-1.0));
     assert_eq!(eval_ok("0.0"), Value::Float(0.0));
@@ -36,7 +36,7 @@ fn test_eval_float_literals() {
 }
 
 #[test]
-fn test_eval_complex_float_literals() {
+fn eval_complex_float_literals() {
     // Turns out nix doesn't support scientific notation without a decimal point
     // assert_eq!(eval_ok("1e10"), Value::Float(1e10));
     // assert_eq!(eval_ok("-1e10"), Value::Float(-1e10));
@@ -48,18 +48,18 @@ fn test_eval_complex_float_literals() {
 }
 
 #[test]
-fn test_eval_bool_literals() {
+fn eval_bool_literals() {
     assert_eq!(eval_ok("true"), Value::Bool(true));
     assert_eq!(eval_ok("false"), Value::Bool(false));
 }
 
 #[test]
-fn test_eval_string_literal() {
+fn eval_string_literal() {
     assert_eq!(eval_ok(r#""Hello!""#), Value::Str("Hello!".to_owned()));
 }
 
 #[test]
-fn test_eval_string_literal_escape_codes() {
+fn eval_string_literal_escape_codes() {
     assert_eq!(
         eval_ok(r#""\"\$\n\r\t\\`""#),
         Value::Str("\"$\n\r\t\\`".to_owned())
@@ -68,7 +68,7 @@ fn test_eval_string_literal_escape_codes() {
 }
 
 #[test]
-fn test_eval_string_uri() {
+fn eval_string_uri() {
     assert_eq!(
         eval_ok("http://foo.bat/moo"),
         Value::Str("http://foo.bat/moo".to_owned())
@@ -76,7 +76,7 @@ fn test_eval_string_uri() {
 }
 
 #[test]
-fn test_eval_indented_string() {
+fn eval_indented_string() {
     assert_eq!(
         eval_ok(
             "''
@@ -101,7 +101,7 @@ fn test_eval_indented_string() {
 }
 
 #[test]
-fn test_eval_string_interpolation() {
+fn eval_string_interpolation() {
     let path = std::env::current_dir().unwrap();
 
     assert_eq!(eval_ok(r#""${"A"}""#), Value::Str("A".to_owned()));
@@ -119,7 +119,21 @@ fn test_eval_string_interpolation() {
 }
 
 #[test]
-fn test_eval_list_literal() {
+fn eval_path() {
+    assert_eq!(eval_ok("/."), Value::Path("/".to_owned()));
+    assert_eq!(eval_ok("/a"), Value::Path("/a".to_owned()));
+    assert_eq!(
+        eval_ok("./a"),
+        Value::Path(format!("{}/a", std::env::current_dir().unwrap().display()))
+    );
+    assert_eq!(
+        eval_ok("./a/../b"),
+        Value::Path(format!("{}/b", std::env::current_dir().unwrap().display()))
+    );
+}
+
+#[test]
+fn eval_list_literal() {
     assert_eq!(eval_ok("[]"), Value::List(vec![]));
     assert_eq!(
         eval_ok(r#"[42 true "answer"]"#),

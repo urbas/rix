@@ -26,7 +26,6 @@ test("calling a lambda should return its value", () => {
   );
 });
 
-// Arithmetic:
 test("unary '-' operator on integers", () => {
   expect(new NixInt(1n).neg()).toStrictEqual(new NixInt(-1n));
 });
