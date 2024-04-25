@@ -2,15 +2,13 @@
 #![allow(clippy::expect_fun_call)]
 #![allow(clippy::approx_constant)]
 
-use std::collections::HashMap;
-
 use crate::eval::{error::NixErrorKind, execution::evaluate, types::Value};
 
 mod attr_set;
 mod builtins;
+mod lambda;
 mod literals;
 mod operators;
-mod lambda;
 
 fn eval_ok(nix_expr: &str) -> Value {
     match evaluate(nix_expr) {
