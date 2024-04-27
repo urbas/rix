@@ -36,14 +36,6 @@ function isErrorMessagePart(part: any): part is ErrorMessagePart {
   );
 }
 
-function isErrorMessage(parts: any): parts is ErrorMessage {
-  if (!Array.isArray(parts)) {
-    return false;
-  }
-
-  return parts.every(isErrorMessagePart);
-}
-
 /** A helper to convert instances to their respective class in a type-safe way, for better error messages */
 export function instanceToClass(instance: NixTypeInstance | NixTypeClass) {
   if (instance instanceof NixBool) {
@@ -144,6 +136,8 @@ export function errTypes(...types: NixTypeClass[]): ErrorMessage {
     }
     message.push(...errType(types[i]));
   }
+
+  return message;
 }
 
 export function highlighted(message: string | ErrorMessage): ErrorMessage {
