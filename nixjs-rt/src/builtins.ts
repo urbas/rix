@@ -38,30 +38,19 @@ function builtinBasicTypeMismatchError(
 }
 
 export function getBuiltins() {
+  // Builtins are sorted by the order they appear in the Nix manual
+  // https://nixos.org/manual/nix/stable/language/builtins.html
+
   const builtins: BuiltinsRecord = {
+    derivation: (arg) => {
+      throw new Error("unimplemented");
+    },
+
     abort: (message) => {
       throw abortError(message.asString());
     },
 
-    import: (path) => {
-      const pathStrict = path.toStrict();
-
-      if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
-        const expected = [Path, NixString];
-        throw builtinBasicTypeMismatchError("import", pathStrict, expected);
-      }
-
-      const pathValue = pathStrict.toJs();
-
-      // Below is an intrinsic function that's injected by the Nix evaluator.
-      // @ts-ignore
-      const resultingFn: (ctx: EvalCtx) => NixType = importNixModule(pathValue);
-
-      const ctx = new EvalCtx(pathValue);
-      return resultingFn(ctx);
-    },
-
-    add: (lhs): Lambda => {
+    add: (lhs) => {
       return new Lambda((rhs) => {
         let lhsStrict = lhs.toStrict();
         if (!(lhsStrict instanceof NixInt || lhsStrict instanceof NixFloat)) {
@@ -77,19 +66,8 @@ export function getBuiltins() {
       });
     },
 
-    head: (list) => {
-      const listStrict = list.toStrict();
-      if (!(listStrict instanceof NixList)) {
-        throw typeMismatchError(
-          listStrict,
-          NixList,
-          err`Cannot apply the 'head' function on '${errType(listStrict)}', expected ${errType(NixList)}.`,
-        );
-      }
-      if (listStrict.values.length === 0) {
-        throw otherError("Cannot fetch the first element in an empty list.");
-      }
-      return listStrict.values[0];
+    addDrvOutputDependencies: (arg) => {
+      throw new Error("unimplemented");
     },
 
     all: (pred) => {
@@ -170,6 +148,416 @@ export function getBuiltins() {
       return new NixList(
         keys.map((key) => attrset.select([new NixString(key)], NULL)),
       );
+    },
+
+    baseNameOf: (path) => {
+      // Can take a string or path
+      const pathStrict = path.toStrict();
+      if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
+        const expected = [Path, NixString];
+        throw builtinBasicTypeMismatchError("baseNameOf", pathStrict, expected);
+      }
+
+      const pathValue = pathStrict.toJs();
+      const parts = pathValue.split("/");
+      return new NixString(parts[parts.length - 1]);
+    },
+
+    bitAnd: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    bitOr: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    bitXor: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    break: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    catAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    ceil: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    compareVersions: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    concatLists: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    concatMap: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    concatStringsSep: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    convertHash: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    deepSeq: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    dirOf: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    div: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    elem: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    elemAt: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fetchClosure: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fetchGit: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fetchTarball: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fetchTree: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fetchurl: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    filter: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    filterSource: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    findFile: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    flakeRefToString: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    floor: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    foldl: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fromJSON: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    fromTOML: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    functionArgs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    genList: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    genericClosure: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    getAttr: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    getContext: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    getEnv: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    getFlake: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    groupBy: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    hasAttr: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    hasContext: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    hashFile: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    hashString: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    head: (list) => {
+      const listStrict = list.toStrict();
+      if (!(listStrict instanceof NixList)) {
+        throw typeMismatchError(
+          listStrict,
+          NixList,
+          err`Cannot apply the 'head' function on '${errType(listStrict)}', expected ${errType(NixList)}.`,
+        );
+      }
+      if (listStrict.values.length === 0) {
+        throw otherError("Cannot fetch the first element in an empty list.");
+      }
+      return listStrict.values[0];
+    },
+
+    import: (path) => {
+      const pathStrict = path.toStrict();
+
+      if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
+        const expected = [Path, NixString];
+        throw builtinBasicTypeMismatchError("import", pathStrict, expected);
+      }
+
+      const pathValue = pathStrict.toJs();
+
+      // Below is an intrinsic function that's injected by the Nix evaluator.
+      // @ts-ignore
+      const resultingFn: (ctx: EvalCtx) => NixType = importNixModule(pathValue);
+
+      const ctx = new EvalCtx(pathValue);
+      return resultingFn(ctx);
+    },
+
+    intersectAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isBool: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isFloat: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isFunction: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isInt: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isList: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isNull: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isPath: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    isString: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    length: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    lessThan: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    listToAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    map: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    mapAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    match: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    mul: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    outputOf: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    parseDrvName: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    parseFlakeRef: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    partition: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    path: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    pathExists: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    placeholder: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    readDir: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    readFile: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    readFileType: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    removeAttrs: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    replaceStrings: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    seq: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    sort: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    split: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    splitVersion: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    storePath: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    stringLength: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    sub: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    substring: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    tail: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    throw: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    toFile: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    toJSON: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    toPath: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    toString: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    toXML: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    trace: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    traceVerbose: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    tryEval: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    typeOf: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    unsafeDiscardOutputDependency: (arg) => {
+      throw new Error("unimplemented");
+    },
+
+    zipAttrsWith: (arg) => {
+      throw new Error("unimplemented");
     },
   };
 

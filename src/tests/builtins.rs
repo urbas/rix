@@ -1,11 +1,17 @@
+#![allow(unused_imports)]
+#![allow(non_snake_case)]
+
 use crate::{eval::error::NixErrorKind, tests::eval_err};
 use crate::{
     eval::types::{NixTypeKind, Value},
     tests::eval_ok,
 };
 
-mod abort {
+mod derivation {
+    use super::*;
+}
 
+mod abort {
     use super::*;
 
     #[test]
@@ -39,29 +45,8 @@ mod add {
     }
 }
 
-mod head {
+mod addDrvOutputDependencies {
     use super::*;
-
-    #[test]
-    fn eval() {
-        assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
-    }
-
-    #[test]
-    fn eval_lazy() {
-        assert_eq!(eval_ok("builtins.head [ 1 (1 / 0) ]"), Value::Int(1));
-    }
-
-    #[test]
-    fn eval_empty() {
-        // Would be weird to have a custom error message kind for this, imo.
-        assert_eq!(
-            eval_err("builtins.head []"),
-            NixErrorKind::Other {
-                message: "Cannot fetch the first element in an empty list.".to_string()
-            }
-        );
-    }
 }
 
 mod all {
@@ -166,7 +151,7 @@ mod any {
     }
 }
 
-mod attr_names {
+mod attrNames {
     use super::*;
 
     #[test]
@@ -210,7 +195,7 @@ mod attr_names {
     }
 }
 
-mod attr_values {
+mod attrValues {
     use super::*;
 
     #[test]
@@ -256,6 +241,199 @@ mod attr_values {
     }
 }
 
+mod baseNameOf {
+    use super::*;
+}
+
+mod bitAnd {
+    use super::*;
+}
+
+mod bitOr {
+    use super::*;
+}
+
+mod bitXor {
+    use super::*;
+}
+
+mod break_ {
+    use super::*;
+}
+
+mod catAttrs {
+    use super::*;
+}
+
+mod ceil {
+    use super::*;
+}
+
+mod compareVersions {
+    use super::*;
+}
+
+mod concatLists {
+    use super::*;
+}
+
+mod concatMap {
+    use super::*;
+}
+
+mod concatStringsSep {
+    use super::*;
+}
+
+mod convertHash {
+    use super::*;
+}
+
+mod deepSeq {
+    use super::*;
+}
+
+mod dirOf {
+    use super::*;
+}
+
+mod div {
+    use super::*;
+}
+
+mod elem {
+    use super::*;
+}
+
+mod elemAt {
+    use super::*;
+}
+
+mod fetchClosure {
+    use super::*;
+}
+
+mod fetchGit {
+    use super::*;
+}
+
+mod fetchTarball {
+    use super::*;
+}
+
+mod fetchTree {
+    use super::*;
+}
+
+mod fetchurl {
+    use super::*;
+}
+
+mod filter {
+    use super::*;
+}
+
+mod filterSource {
+    use super::*;
+}
+
+mod findFile {
+    use super::*;
+}
+
+mod flakeRefToString {
+    use super::*;
+}
+
+mod floor {
+    use super::*;
+}
+
+mod foldl {
+    use super::*;
+}
+
+mod fromJSON {
+    use super::*;
+}
+
+mod fromTOML {
+    use super::*;
+}
+
+mod functionArgs {
+    use super::*;
+}
+
+mod genList {
+    use super::*;
+}
+
+mod genericClosure {
+    use super::*;
+}
+
+mod getAttr {
+    use super::*;
+}
+
+mod getContext {
+    use super::*;
+}
+
+mod getEnv {
+    use super::*;
+}
+
+mod getFlake {
+    use super::*;
+}
+
+mod groupBy {
+    use super::*;
+}
+
+mod hasAttr {
+    use super::*;
+}
+
+mod hasContext {
+    use super::*;
+}
+
+mod hashFile {
+    use super::*;
+}
+
+mod hashString {
+    use super::*;
+}
+
+mod head {
+    use super::*;
+
+    #[test]
+    fn eval() {
+        assert_eq!(eval_ok("builtins.head [ 1 2 ]"), Value::Int(1));
+    }
+
+    #[test]
+    fn eval_lazy() {
+        assert_eq!(eval_ok("builtins.head [ 1 (1 / 0) ]"), Value::Int(1));
+    }
+
+    #[test]
+    fn eval_empty() {
+        // Would be weird to have a custom error message kind for this, imo.
+        assert_eq!(
+            eval_err("builtins.head []"),
+            NixErrorKind::Other {
+                message: "Cannot fetch the first element in an empty list.".to_string()
+            }
+        );
+    }
+}
+
 mod import {
     use super::*;
 
@@ -284,4 +462,204 @@ mod import {
     //         }
     //     );
     // }
+}
+
+mod intersectAttrs {
+    use super::*;
+}
+
+mod isAttrs {
+    use super::*;
+}
+
+mod isBool {
+    use super::*;
+}
+
+mod isFloat {
+    use super::*;
+}
+
+mod isFunction {
+    use super::*;
+}
+
+mod isInt {
+    use super::*;
+}
+
+mod isList {
+    use super::*;
+}
+
+mod isNull {
+    use super::*;
+}
+
+mod isPath {
+    use super::*;
+}
+
+mod isString {
+    use super::*;
+}
+
+mod length {
+    use super::*;
+}
+
+mod lessThan {
+    use super::*;
+}
+
+mod listToAttrs {
+    use super::*;
+}
+
+mod map {
+    use super::*;
+}
+
+mod mapAttrs {
+    use super::*;
+}
+
+mod match_ {
+    use super::*;
+}
+
+mod mul {
+    use super::*;
+}
+
+mod outputOf {
+    use super::*;
+}
+
+mod parseDrvName {
+    use super::*;
+}
+
+mod parseFlakeRef {
+    use super::*;
+}
+
+mod partition {
+    use super::*;
+}
+
+mod path {
+    use super::*;
+}
+
+mod pathExists {
+    use super::*;
+}
+
+mod placeholder {
+    use super::*;
+}
+
+mod readDir {
+    use super::*;
+}
+
+mod readFile {
+    use super::*;
+}
+
+mod readFileType {
+    use super::*;
+}
+
+mod removeAttrs {
+    use super::*;
+}
+
+mod replaceStrings {
+    use super::*;
+}
+
+mod seq {
+    use super::*;
+}
+
+mod sort {
+    use super::*;
+}
+
+mod split {
+    use super::*;
+}
+
+mod splitVersion {
+    use super::*;
+}
+
+mod storePath {
+    use super::*;
+}
+
+mod stringLength {
+    use super::*;
+}
+
+mod sub {
+    use super::*;
+}
+
+mod substring {
+    use super::*;
+}
+
+mod tail {
+    use super::*;
+}
+
+mod throw {
+    use super::*;
+}
+
+mod toFile {
+    use super::*;
+}
+
+mod toJSON {
+    use super::*;
+}
+
+mod toPath {
+    use super::*;
+}
+
+mod toString {
+    use super::*;
+}
+
+mod toXML {
+    use super::*;
+}
+
+mod trace {
+    use super::*;
+}
+
+mod traceVerbose {
+    use super::*;
+}
+
+mod tryEval {
+    use super::*;
+}
+
+mod typeOf {
+    use super::*;
+}
+
+mod unsafeDiscardOutputDependency {
+    use super::*;
+}
+
+mod zipAttrsWith {
+    use super::*;
 }
