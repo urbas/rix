@@ -7,6 +7,9 @@ use crate::{
     tests::eval_ok,
 };
 
+// Builtins are sorted by the order they appear in the Nix manual
+// https://nixos.org/manual/nix/stable/language/builtins.html
+
 mod derivation {
     use super::*;
 }
