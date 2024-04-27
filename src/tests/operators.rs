@@ -190,13 +190,13 @@ fn eval_string_operator_errors() {
     );
 
     // FIXME: It says string instead of int, because nixjs flips the operator. Should we address?
-    // assert_eq!(
-    //     eval_err("\"hello\" < 123"),
-    //     NixErrorKind::TypeMismatch {
-    //         expected: vec![],
-    //         got: NixTypeKind::Int
-    //     }
-    // );
+    assert_eq!(
+        eval_err("\"hello\" < 123"),
+        NixErrorKind::TypeMismatch {
+            expected: vec![],
+            got: NixTypeKind::String
+        }
+    );
     assert_eq!(
         eval_err("\"hello\" > 123"),
         NixErrorKind::TypeMismatch {
@@ -212,13 +212,13 @@ fn eval_string_operator_errors() {
         }
     );
     // FIXME: It says string instead of int, because nixjs flips the operator. Should we address?
-    // assert_eq!(
-    //     eval_err("\"hello\" >= 123"),
-    //     NixErrorKind::TypeMismatch {
-    //         expected: vec![],
-    //         got: NixTypeKind::Int
-    //     }
-    // );
+    assert_eq!(
+        eval_err("\"hello\" >= 123"),
+        NixErrorKind::TypeMismatch {
+            expected: vec![],
+            got: NixTypeKind::String
+        }
+    );
 }
 
 #[test]

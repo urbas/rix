@@ -607,11 +607,6 @@ function _recursiveDisjointMerge(
 function _assertIsMergeable(value: NixType, attrPath: string[]): Attrset {
   const valueStrict = value.toStrict();
   if (!(valueStrict instanceof Attrset)) {
-    // FIXME: Is this error relevant? I'm not sure why it was here, but I'll leave it as a comment
-    // throw new EvalException(
-    //   `Attribute '${attrPath.join(".")}' already defined.`,
-    // );
-
     throw typeMismatchError(
       valueStrict,
       Attrset,
