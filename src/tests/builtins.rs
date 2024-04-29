@@ -246,6 +246,47 @@ mod attrValues {
 
 mod baseNameOf {
     use super::*;
+
+    // Returns everything following the final slash
+
+    #[test]
+    fn eval() {
+        assert_eq!(
+            eval_ok("builtins.baseNameOf \"/foo/bar/baz\""),
+            Value::Str("baz".into())
+        );
+        assert_eq!(
+            eval_ok("builtins.baseNameOf \"/foo/bar/baz/\""),
+            Value::Str("".into())
+        );
+        assert_eq!(
+            eval_ok("builtins.baseNameOf \"foo\""),
+            Value::Str("foo".into())
+        );
+    }
+
+    #[test]
+    fn eval_path() {
+        assert_eq!(
+            eval_ok("builtins.baseNameOf /foo/bar/baz"),
+            Value::Str("baz".into())
+        );
+        assert_eq!(
+            eval_ok("builtins.baseNameOf ./foo"),
+            Value::Str("foo".into())
+        );
+    }
+
+    #[test]
+    fn eval_invalid_types() {
+        assert_eq!(
+            eval_err("builtins.baseNameOf 1"),
+            NixErrorKind::TypeMismatch {
+                expected: vec![NixTypeKind::String, NixTypeKind::Path],
+                got: NixTypeKind::Int
+            }
+        );
+    }
 }
 
 mod bitAnd {
