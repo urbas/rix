@@ -257,6 +257,10 @@ mod baseNameOf {
         );
         assert_eq!(
             eval_ok("builtins.baseNameOf \"/foo/bar/baz/\""),
+            Value::Str("baz".into())
+        );
+        assert_eq!(
+            eval_ok("builtins.baseNameOf \"/foo/bar/baz//\""),
             Value::Str("".into())
         );
         assert_eq!(

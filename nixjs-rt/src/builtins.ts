@@ -158,7 +158,11 @@ export function getBuiltins() {
         throw builtinBasicTypeMismatchError("baseNameOf", pathStrict, expected);
       }
 
-      const pathValue = pathStrict.toJs();
+      let pathValue = pathStrict.toJs();
+      if (pathValue.endsWith("/")) {
+        pathValue = pathValue.slice(0, -1);
+      }
+
       const parts = pathValue.split("/");
       return new NixString(parts[parts.length - 1]);
     },
