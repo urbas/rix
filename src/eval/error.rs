@@ -174,7 +174,9 @@ fn try_js_error_to_rust(
         }
         _ => {
             return Ok(NixError {
-                message: vec![NixErrorMessagePart::Plain("An error occurred.".to_owned())],
+                message: vec![NixErrorMessagePart::Plain(
+                    "An unrecognized NixError occurred.".to_owned(),
+                )],
                 kind: NixErrorKind::UnexpectedJsError {
                     message: error.to_rust_string_lossy(scope),
                 },

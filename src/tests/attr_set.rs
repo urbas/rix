@@ -84,7 +84,7 @@ fn eval_attrset_non_string_attr() {
 fn eval_attrset_update() {
     assert_eq!(eval_ok("{} // {}"), Value::AttrSet(HashMap::new()));
     assert_eq!(
-        eval_ok("{a = 1; b = 2;} // {a = 3; c = 1;"),
+        eval_ok("{a = 1; b = 2;} // {a = 3; c = 1;}"),
         Value::AttrSet(HashMap::from([
             ("a".to_owned(), Value::Int(3)),
             ("b".to_owned(), Value::Int(2)),

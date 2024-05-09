@@ -139,6 +139,17 @@ fn eval_path_string_concatenation() {
 
 #[test]
 fn eval_path_concat() {
+    let curr_dir = std::env::current_dir().unwrap();
+
+    assert_eq!(
+        eval_ok("./foo + ./bar"),
+        Value::Path(format!(
+            "{}/foo{}/bar",
+            curr_dir.display(),
+            curr_dir.display()
+        ))
+    );
+
     assert_eq!(eval_ok(r#"/. + "a""#), Value::Path("/a".to_owned()));
     assert_eq!(eval_ok(r#"/. + "./a/../b""#), Value::Path("/b".to_owned()));
 }
