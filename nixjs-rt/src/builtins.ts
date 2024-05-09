@@ -17,10 +17,11 @@ import {
   NixTypeClass,
   Path,
   TRUE,
+  toPath,
 } from "./lib";
-import { dirOf, normalizePath } from "./utils";
+import { dirOf, isAbsolutePath, joinPaths, normalizePath } from "./utils";
 
-type BuiltinsRecord = Record<string, (param: NixType) => NixType>;
+type BuiltinsRecord = Record<string, (param: NixType, ctx: EvalCtx) => NixType>;
 
 function builtinBasicTypeMismatchError(
   fnName: string,
@@ -71,7 +72,7 @@ export function getBuiltins() {
       throw new Error("unimplemented");
     },
 
-    all: (pred) => {
+    all: (pred, ctx) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
         throw builtinBasicTypeMismatchError("all", lambdaStrict, Lambda);
@@ -84,7 +85,7 @@ export function getBuiltins() {
         }
 
         for (const element of listStrict.values) {
-          const result = lambdaStrict.apply(element);
+          const result = lambdaStrict.apply(element, ctx);
           if (!result.asBoolean()) {
             return FALSE;
           }
@@ -94,7 +95,7 @@ export function getBuiltins() {
       });
     },
 
-    any: (pred) => {
+    any: (pred, ctx) => {
       const lambdaStrict = pred.toStrict();
       if (!(lambdaStrict instanceof Lambda)) {
         throw builtinBasicTypeMismatchError("any", lambdaStrict, Lambda);
@@ -107,7 +108,7 @@ export function getBuiltins() {
         }
 
         for (const element of listStrict.values) {
-          const result = lambdaStrict.apply(element);
+          const result = lambdaStrict.apply(element, ctx);
           if (result.asBoolean()) {
             return TRUE;
           }
@@ -216,7 +217,7 @@ export function getBuiltins() {
       throw new Error("unimplemented");
     },
 
-    dirOf: (arg) => {
+    dirOf: (path) => {
       throw new Error("unimplemented");
     },
 
@@ -347,7 +348,7 @@ export function getBuiltins() {
       return listStrict.values[0];
     },
 
-    import: (path) => {
+    import: (path, ctx) => {
       const pathStrict = path.toStrict();
 
       if (!(pathStrict instanceof Path || pathStrict instanceof NixString)) {
@@ -357,8 +358,7 @@ export function getBuiltins() {
 
       let pathValue = "";
       if (pathStrict instanceof NixString) {
-        // TODO: Get relative paths working
-        pathValue = normalizePath(pathStrict.toJs());
+        pathValue = normalizePath(joinPaths(ctx.scriptDir, pathStrict.toJs()));
       } else if (pathStrict instanceof Path) {
         pathValue = pathStrict.toJs();
       }
