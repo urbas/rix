@@ -2,7 +2,11 @@
 #![allow(clippy::expect_fun_call)]
 #![allow(clippy::approx_constant)]
 
-use crate::eval::{error::NixErrorKind, execution::evaluate, types::{NixTypeKind, Value}};
+use crate::eval::{
+    error::NixErrorKind,
+    execution::evaluate,
+    types::{NixTypeKind, Value},
+};
 
 mod attr_set;
 mod builtins;
@@ -11,17 +15,19 @@ mod literals;
 mod operators;
 
 fn eval_ok(nix_expr: &str) -> Value {
-    match evaluate(nix_expr) {
+    let workdir = std::env::current_dir().unwrap();
+    match evaluate(nix_expr, &workdir) {
         Ok(val) => val,
         Err(err) => panic!(
-            "eval '{}' shouldn't fail.\nError message: {}",
+            "eval '{}' shouldn't fail.\nError message: {:?}",
             nix_expr, err
         ),
     }
 }
 
 fn eval_err(nix_expr: &str) -> NixErrorKind {
-    evaluate(nix_expr)
+    let workdir = std::env::current_dir().unwrap();
+    evaluate(nix_expr, &workdir)
         .expect_err(&format!("eval '{}' expected an error", nix_expr))
         .kind
 }

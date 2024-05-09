@@ -1,4 +1,3 @@
-use std::env::current_dir;
 use std::path::Path;
 use std::sync::Once;
 
@@ -13,7 +12,7 @@ use super::types::js_value_to_nix;
 
 static INIT_V8: Once = Once::new();
 
-pub fn evaluate(nix_expr: &str) -> EvalResult {
+pub fn evaluate(nix_expr: &str, workdir: &Path) -> EvalResult {
     initialize_v8();
     // Declare the V8 execution context
     let isolate = &mut v8::Isolate::new(Default::default());
@@ -53,7 +52,7 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
 
     let root_nix_fn = nix_expr_to_js_function(scope, nix_expr)?;
 
-    nix_value_from_module(scope, root_nix_fn, nixjs_rt_obj)
+    nix_value_from_module(scope, root_nix_fn, nixjs_rt_obj, workdir)
 }
 
 fn nix_expr_to_js_function<'s>(
@@ -172,16 +171,11 @@ fn nix_value_from_module(
     scope: &mut v8::ContextScope<v8::HandleScope>,
     nix_value: v8::Local<v8::Function>,
     nixjs_rt_obj: v8::Local<v8::Object>,
+    workdir: &Path,
 ) -> EvalResult {
     let nixrt: v8::Local<v8::Value> = nixjs_rt_obj.into();
 
-    let eval_ctx = create_eval_ctx(
-        scope,
-        &nixrt,
-        &current_dir().map_err(|err| {
-            format!("Failed to determine the current working directory. Error: {err}")
-        })?,
-    )?;
+    let eval_ctx = create_eval_ctx(scope, &nixrt, workdir)?;
 
     let nix_value = call_js_function(scope, &nix_value, nixjs_rt_obj, &[eval_ctx.into()])?;
 
