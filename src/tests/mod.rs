@@ -2,7 +2,7 @@
 #![allow(clippy::expect_fun_call)]
 #![allow(clippy::approx_constant)]
 
-use crate::eval::{error::NixErrorKind, execution::evaluate, types::Value};
+use crate::eval::{error::NixErrorKind, execution::evaluate, types::{NixTypeKind, Value}};
 
 mod attr_set;
 mod builtins;
@@ -34,7 +34,13 @@ fn eval_if_then_else() {
 
 #[test]
 fn eval_if_then_else_invalid_type() {
-    assert!(evaluate("if 0 then 1 else 0").is_err());
+    assert_eq!(
+        eval_err("if 0 then 1 else 0"),
+        NixErrorKind::TypeMismatch {
+            expected: vec![NixTypeKind::Bool],
+            got: NixTypeKind::Int,
+        }
+    );
 }
 
 #[test]
