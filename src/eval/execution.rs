@@ -192,7 +192,7 @@ fn nix_value_from_module(
             .expect("`n.recursiveStrict` is not a function.");
     let strict_nix_value = call_js_function(scope, &to_strict_fn, nixjs_rt_obj, &[nix_value])?;
 
-    js_value_to_nix(scope, &nixrt, &strict_nix_value)
+    js_value_to_nix(scope, &nixjs_rt_obj, &strict_nix_value)
 }
 
 fn create_eval_ctx<'s>(
