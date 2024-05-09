@@ -72,15 +72,38 @@ pub fn call_js_function<'s>(
     args: &[v8::Local<v8::Value>],
 ) -> Result<v8::Local<'s, v8::Value>, NixError> {
     let try_scope = &mut v8::TryCatch::new(scope);
-    let recv = v8::undefined(try_scope).into();
-    let Some(strict_nix_value) = js_function.call(try_scope, recv, args) else {
-        // TODO: Again, the stack trace needs to be source-mapped.
-        if let Some(error) = try_scope.exception() {
-            let error = js_error_to_rust(try_scope, nixrt, error);
-            return Err(error);
-        } else {
-            return Err("Unknown evaluation error.".into());
-        }
+    let this = v8::undefined(try_scope).into();
+    let Some(strict_nix_value) = js_function.call(try_scope, this, args) else {
+        let exception = try_scope.exception();
+        return Err(map_js_exception_value_to_rust(try_scope, nixrt, exception));
     };
     Ok(strict_nix_value)
+}
+
+pub fn call_applied_js_function<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    js_function: &v8::Local<v8::Function>,
+    this: v8::Local<v8::Value>,
+    nixrt: v8::Local<v8::Object>,
+    args: &[v8::Local<v8::Value>],
+) -> Result<v8::Local<'s, v8::Value>, NixError> {
+    let try_scope = &mut v8::TryCatch::new(scope);
+    let Some(strict_nix_value) = js_function.call(try_scope, this, args) else {
+        let exception = try_scope.exception();
+        return Err(map_js_exception_value_to_rust(try_scope, nixrt, exception));
+    };
+    Ok(strict_nix_value)
+}
+
+pub fn map_js_exception_value_to_rust<'s>(
+    scope: &mut v8::HandleScope<'s>,
+    nixrt: v8::Local<v8::Object>,
+    exception: Option<v8::Local<'s, v8::Value>>,
+) -> NixError {
+    // TODO: Again, the stack trace needs to be source-mapped.
+    if let Some(error) = exception {
+        js_error_to_rust(scope, nixrt, error)
+    } else {
+        "Unknown evaluation error.".into()
+    }
 }
