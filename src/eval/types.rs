@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     error::NixError,
-    helpers::{is_nixrt_type, try_get_js_object_key},
+    helpers::{call_applied_js_function, is_nixrt_type, try_get_js_object_key},
 };
 
 #[derive(Debug, PartialEq)]
@@ -34,7 +34,7 @@ pub type EvalResult = Result<Value, NixError>;
 
 pub fn js_value_to_nix(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> EvalResult {
     if js_value.is_function() {
@@ -75,7 +75,7 @@ pub fn js_value_to_nix(
 
 fn from_js_int(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixInt")? {
@@ -92,7 +92,7 @@ fn from_js_int(
 
 fn from_js_string(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixString")? {
@@ -111,7 +111,7 @@ fn from_js_string(
 
 fn from_js_lazy(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "Lazy")? {
@@ -123,9 +123,10 @@ fn from_js_lazy(
                 "Expected `toStrict` to be a method on the Lazy object. Internal conversion error: {err:?}"
             )
         })?;
-        let strict_value = to_strict_method
-            .call(scope, *js_value, &[])
-            .ok_or_else(|| "Could not convert the lazy value to strict.".to_string())?;
+
+        let strict_value =
+            call_applied_js_function(scope, &to_strict_method, *js_value, *nixrt, &[])?;
+
         return Ok(Some(js_value_to_nix(scope, nixrt, &strict_value)?));
     }
     Ok(None)
@@ -133,7 +134,7 @@ fn from_js_lazy(
 
 fn from_js_bool(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixBool")? {
@@ -152,7 +153,7 @@ fn from_js_bool(
 
 fn from_js_float(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixFloat")? {
@@ -176,7 +177,7 @@ fn from_js_float(
 
 fn from_js_attrset(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "Attrset")? {
@@ -206,7 +207,7 @@ fn from_js_attrset(
 
 fn from_js_list(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if is_nixrt_type(scope, nixrt, js_value, "NixList")? {
@@ -226,7 +227,7 @@ fn from_js_list(
 
 fn from_js_path(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if !is_nixrt_type(scope, nixrt, js_value, "Path")? {
@@ -240,7 +241,7 @@ fn from_js_path(
 
 fn from_js_lambda(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_value: &v8::Local<v8::Value>,
 ) -> Result<Option<Value>, NixError> {
     if !is_nixrt_type(scope, nixrt, js_value, "Lambda")? {
@@ -251,7 +252,7 @@ fn from_js_lambda(
 
 fn js_value_as_nix_array(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_array: &v8::Local<v8::Array>,
 ) -> EvalResult {
     let length = js_array.length();
@@ -268,7 +269,7 @@ fn js_value_as_nix_array(
 
 fn js_map_as_attrset(
     scope: &mut v8::HandleScope<'_>,
-    nixrt: &v8::Local<v8::Value>,
+    nixrt: &v8::Local<v8::Object>,
     js_map: &v8::Local<v8::Map>,
 ) -> EvalResult {
     let mut map: HashMap<String, Value> = HashMap::new();
