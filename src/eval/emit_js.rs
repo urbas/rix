@@ -49,7 +49,7 @@ fn emit_apply(apply: &ast::Apply, out_src: &mut String) -> Result<(), String> {
             .expect("Unexpected lambda application without arguments."),
         out_src,
     )?;
-    out_src.push(')');
+    out_src.push_str(", ctx)");
     Ok(())
 }
 
