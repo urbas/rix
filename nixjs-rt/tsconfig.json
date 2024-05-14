@@ -6,7 +6,8 @@
     "moduleResolution": "Bundler",
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    "typeRoots": ["src/globals.d.ts"]
   },
   "include": ["src/**/*.ts"]
 }

@@ -22,11 +22,24 @@ pub fn evaluate(nix_expr: &str) -> EvalResult {
     let scope = &mut v8::ContextScope::new(scope, context);
     let global = context.global(scope);
 
-    let import_module_attr = v8::String::new(scope, "importNixModule").unwrap();
-    let import_module_fn = v8::Function::new(scope, import_nix_module).unwrap();
-    global
-        .set(scope, import_module_attr.into(), import_module_fn.into())
-        .unwrap();
+    // Insert all globals, as defined by globals.d.ts
+    let globals: &[(_, v8::Local<v8::Value>)] = &[
+        (
+            "importNixModule",
+            v8::Function::new(scope, import_nix_module).unwrap().into(),
+        ),
+        (
+            "debugLog",
+            v8::Function::new(scope, debug_log).unwrap().into(),
+        ),
+    ];
+
+    for (name, value) in globals {
+        let import_module_attr = v8::String::new(scope, name).unwrap();
+        global
+            .set(scope, import_module_attr.into(), *value)
+            .unwrap();
+    }
 
     // Execute the Nix runtime JS module, get its exports
     let nixjs_rt_str = include_str!("../../nixjs-rt/dist/lib.mjs");
@@ -108,6 +121,16 @@ fn import_nix_module<'s>(
     };
 
     ret.set(nix_fn.into());
+}
+
+fn debug_log<'s>(
+    scope: &mut HandleScope<'s>,
+    args: v8::FunctionCallbackArguments<'s>,
+    _ret: v8::ReturnValue,
+) {
+    // Log the first argument
+    let log_str = args.get(0).to_rust_string_lossy(scope);
+    eprintln!("Log from JS: {log_str}");
 }
 
 fn exec_module<'a>(

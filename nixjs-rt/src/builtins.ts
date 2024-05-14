@@ -356,8 +356,6 @@ export function getBuiltins() {
 
       const pathValue = pathStrict.toJs();
 
-      // Below is an intrinsic function that's injected by the Nix evaluator.
-      // @ts-ignore
       const resultingFn: (ctx: EvalCtx) => NixType = importNixModule(pathValue);
 
       const ctx = new EvalCtx(pathValue);
