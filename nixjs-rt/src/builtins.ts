@@ -1,4 +1,4 @@
-import { err, errType, errTypes } from "./errors";
+import { err, errType, errTypes, highlighted } from "./errors";
 import { abortError } from "./errors/abort";
 import { otherError } from "./errors/other";
 import { typeMismatchError } from "./errors/typeError";
@@ -18,6 +18,7 @@ import {
   Path,
   TRUE,
 } from "./lib";
+import { dirOf, isAbsolutePath, normalizePath } from "./utils";
 
 type BuiltinsRecord = Record<string, (param: NixType) => NixType>;
 
@@ -354,12 +355,25 @@ export function getBuiltins() {
         throw builtinBasicTypeMismatchError("import", pathStrict, expected);
       }
 
-      const pathValue = pathStrict.toJs();
+      let pathValue = "";
+      if (pathStrict instanceof NixString) {
+        pathValue = normalizePath(pathStrict.toJs());
+      } else if (pathStrict instanceof Path) {
+        pathValue = pathStrict.toJs();
+      }
 
-      const resultingFn: (ctx: EvalCtx) => NixType = importNixModule(pathValue);
+      // Check if it's an absolute path. Relative paths are not allowed.
+      // Path data types are always automatically absolute.
+      if (isAbsolutePath(pathValue)) {
+        throw otherError(
+          `string ${highlighted(JSON.stringify(pathValue))} doesn't represent an absolute path. Only absolute paths are allowed for imports.`,
+        );
+      }
 
-      const ctx = new EvalCtx(pathValue);
-      return resultingFn(ctx);
+      const resultingFn = importNixModule(pathValue);
+
+      const newCtx = new EvalCtx(dirOf(pathValue));
+      return resultingFn(newCtx);
     },
 
     intersectAttrs: (arg) => {
