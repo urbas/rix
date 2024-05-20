@@ -21,9 +21,9 @@ import { evalCtx, keyVals, toAttrpath } from "./testUtils";
 
 // Apply:
 test("calling a lambda should return its value", () => {
-  expect(new Lambda((_) => new NixInt(1n)).apply(EMPTY_ATTRSET)).toStrictEqual(
-    new NixInt(1n),
-  );
+  expect(
+    new Lambda((_) => new NixInt(1n)).apply(EMPTY_ATTRSET, evalCtx()),
+  ).toStrictEqual(new NixInt(1n));
 });
 
 // Arithmetic:
@@ -496,7 +496,7 @@ test("parameter lambda", () => {
   expect(
     n
       .paramLambda(evalCtx(), "foo", (evalCtx) => evalCtx.lookup("foo"))
-      .apply(n.TRUE),
+      .apply(n.TRUE, evalCtx()),
   ).toBe(n.TRUE);
 });
 

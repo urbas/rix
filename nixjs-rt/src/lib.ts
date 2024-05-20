@@ -142,7 +142,7 @@ export abstract class NixType {
     return _nixBoolFromJs(this.asBoolean() && rhs.asBoolean());
   }
 
-  apply(param: NixType): NixType {
+  apply(param: NixType, ctx: EvalCtx): NixType {
     throw invalidTypeError(
       this,
       err`Attempt to call something which is not a function but is ${errType(this)}`,
@@ -1063,8 +1063,8 @@ export class Lazy extends NixType {
     return this.toStrict().and(rhs);
   }
 
-  override apply(param: NixType): NixType {
-    return this.toStrict().apply(param);
+  override apply(param: NixType, ctx: EvalCtx): NixType {
+    return this.toStrict().apply(param, ctx);
   }
 
   override asBoolean(): boolean {
@@ -1176,15 +1176,15 @@ export class Lazy extends NixType {
 }
 
 export class Lambda extends NixType {
-  body: (param: NixType) => NixType;
+  body: (param: NixType, ctx: EvalCtx) => NixType;
 
-  constructor(body: (param: NixType) => NixType) {
+  constructor(body: (param: NixType, ctx: EvalCtx) => NixType) {
     super();
     this.body = body;
   }
 
-  override apply(param: NixType): NixType {
-    return this.body(param);
+  override apply(param: NixType, ctx: EvalCtx): NixType {
+    return this.body(param, ctx);
   }
 
   toJs(): any {
