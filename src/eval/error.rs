@@ -72,7 +72,7 @@ pub enum NixErrorKind {
         got: NixTypeKind,
     },
     Other {
-        message: String,
+        codename: String,
     },
     MissingAttribute {
         attr_path: Vec<String>,
@@ -153,9 +153,10 @@ fn try_js_error_to_rust(
             NixErrorKind::TypeMismatch { expected, got }
         }
         "NixOtherError" => {
-            let message_js = get_js_value_key(scope, &kind_js, "message")?;
-            let message = message_js.to_rust_string_lossy(scope);
-            NixErrorKind::Other { message }
+            let codename_js = get_js_value_key(scope, &kind_js, "codename")?;
+            let codename = codename_js.to_rust_string_lossy(scope);
+
+            NixErrorKind::Other { codename }
         }
         "NixMissingAttributeError" => {
             let attr_path_js = get_js_value_key(scope, &kind_js, "attrPath")?;
@@ -211,7 +212,7 @@ fn nix_type_class_to_enum(
                 "Unexpected type name: {name}"
             ))],
             kind: NixErrorKind::Other {
-                message: format!("Unexpected type name: {name}"),
+                codename: "unknown-type".to_owned(),
             },
         }),
     }

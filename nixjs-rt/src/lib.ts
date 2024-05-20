@@ -536,6 +536,7 @@ class AttrsetBuilder implements Scope {
       if (attrPath.length === 0) {
         throw otherError(
           "Cannot add an undefined attribute name to the attrset.",
+          "attrset-add-undefined-attrname",
         );
       }
       const attrName = attrPath[0].toStrict();
@@ -1303,7 +1304,10 @@ function _attrPathToValue(
   value: NixType,
 ): undefined | NixType {
   if (attrPath.length === 0) {
-    throw otherError("Unexpected attr path of zero length.");
+    throw otherError(
+      "Unexpected attr path of zero length.",
+      "attrset-attrpath-zero-length",
+    );
   }
 
   let attrName = attrPath[0].toStrict();
