@@ -549,7 +549,14 @@ export function getBuiltins() {
       throw new Error("unimplemented");
     },
 
-    toString: (arg) => {
+    toString: (arg: NixType) => {
+      if (arg instanceof NixString) {
+        return arg;
+      } else if (arg instanceof Path) {
+        return new NixString(arg.path);
+      }
+
+      // TODO: Expand on this
       throw new Error("unimplemented");
     },
 
