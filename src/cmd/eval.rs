@@ -28,7 +28,10 @@ pub fn handle_cmd(parsed_args: &ArgMatches) -> Result<(), NixError> {
     let expr = parsed_args
         .get_one::<String>("expr")
         .ok_or("You must use the '--expr' option. Nothing else is implemented :)")?;
-    print_value(&execution::evaluate(expr)?);
+
+    let current_dir = std::env::current_dir().map_err(|_| "Couldn't get the current directory")?;
+
+    print_value(&execution::evaluate(expr, &current_dir)?);
     println!();
     Ok(())
 }
