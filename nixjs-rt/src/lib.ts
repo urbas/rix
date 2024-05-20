@@ -20,6 +20,7 @@ import {
   couldntFindVariableError,
 } from "./errors/variable";
 import { NixAbortError } from "./errors/abort";
+import { isAbsolutePath, joinPaths, normalizePath } from "./utils";
 
 // Error re-exports
 export { NixError } from "./errors";
@@ -1289,34 +1290,6 @@ export function recursiveStrictAttrset(theAttrset: Attrset): Attrset {
     recursiveStrict(value);
   }
   return theAttrset;
-}
-
-function isAbsolutePath(path: string): boolean {
-  return path.startsWith("/");
-}
-
-function joinPaths(abs_base: string, path: string): string {
-  return `${abs_base}/${path}`;
-}
-
-function normalizePath(path: string): string {
-  let segments = path.split("/");
-  let normalizedSegments = new Array();
-  for (const segment of segments) {
-    switch (segment) {
-      case "":
-        break;
-      case ".":
-        break;
-      case "..":
-        normalizedSegments.pop();
-        break;
-      default:
-        normalizedSegments.push(segment);
-        break;
-    }
-  }
-  return (isAbsolutePath(path) ? "/" : "") + normalizedSegments.join("/");
 }
 
 /**
