@@ -476,7 +476,7 @@ mod head {
         assert_eq!(
             eval_err("builtins.head []"),
             NixErrorKind::Other {
-                message: "Cannot fetch the first element in an empty list.".to_string()
+                codename: "builtins-head-on-empty-list".to_string()
             }
         );
     }

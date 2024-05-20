@@ -341,7 +341,10 @@ export function getBuiltins() {
         );
       }
       if (listStrict.values.length === 0) {
-        throw otherError("Cannot fetch the first element in an empty list.");
+        throw otherError(
+          "Cannot fetch the first element in an empty list.",
+          "builtins-head-on-empty-list",
+        );
       }
       return listStrict.values[0];
     },
