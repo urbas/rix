@@ -20,6 +20,7 @@ import {
   couldntFindVariableError,
 } from "./errors/variable";
 import { NixAbortError } from "./errors/abort";
+import { isAbsolutePath, joinPaths, normalizePath } from "./utils";
 
 // Error re-exports
 export { NixError } from "./errors";
@@ -535,6 +536,7 @@ class AttrsetBuilder implements Scope {
       if (attrPath.length === 0) {
         throw otherError(
           "Cannot add an undefined attribute name to the attrset.",
+          "attrset-add-undefined-attrname",
         );
       }
       const attrName = attrPath[0].toStrict();
@@ -1291,34 +1293,6 @@ export function recursiveStrictAttrset(theAttrset: Attrset): Attrset {
   return theAttrset;
 }
 
-function isAbsolutePath(path: string): boolean {
-  return path.startsWith("/");
-}
-
-function joinPaths(abs_base: string, path: string): string {
-  return `${abs_base}/${path}`;
-}
-
-function normalizePath(path: string): string {
-  let segments = path.split("/");
-  let normalizedSegments = new Array();
-  for (const segment of segments) {
-    switch (segment) {
-      case "":
-        break;
-      case ".":
-        break;
-      case "..":
-        normalizedSegments.pop();
-        break;
-      default:
-        normalizedSegments.push(segment);
-        break;
-    }
-  }
-  return (isAbsolutePath(path) ? "/" : "") + normalizedSegments.join("/");
-}
-
 /**
  * If given an attrset entry like `a = value`, then this function returns just the given value.
  * If the attrset has multiple segments (e.g. `a.b.c = value`), then this function returns
@@ -1330,7 +1304,10 @@ function _attrPathToValue(
   value: NixType,
 ): undefined | NixType {
   if (attrPath.length === 0) {
-    throw otherError("Unexpected attr path of zero length.");
+    throw otherError(
+      "Unexpected attr path of zero length.",
+      "attrset-attrpath-zero-length",
+    );
   }
 
   let attrName = attrPath[0].toStrict();
