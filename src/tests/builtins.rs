@@ -488,9 +488,57 @@ mod import {
     #[test]
     fn eval() {
         assert_eq!(
-            eval_ok("(builtins.import ./flake.nix).description"),
-            Value::Str("A reimplementation or nix in Rust.".into())
+            eval_ok("(builtins.import ./src/tests/import_tests/basic.nix).data"),
+            Value::Str("imported!".into())
         );
+    }
+
+    #[test]
+    fn eval_same_folder_import() {
+        assert_eq!(
+            eval_ok("(builtins.import ./src/tests/import_tests/same-folder-import.nix).dataPath"),
+            Value::Str("imported!".into())
+        );
+        assert_eq!(
+            eval_ok("(builtins.import ./src/tests/import_tests/same-folder-import.nix).dataString"),
+            Value::Str("imported!".into())
+        );
+    }
+
+    #[test]
+    fn eval_child_folder_import() {
+        assert_eq!(
+            eval_ok("(builtins.import ./src/tests/import_tests/child-folder-import.nix).dataPath"),
+            Value::Str("imported!".into())
+        );
+        assert_eq!(
+            eval_ok(
+                "(builtins.import ./src/tests/import_tests/child-folder-import.nix).dataString"
+            ),
+            Value::Str("imported!".into())
+        );
+    }
+
+    #[test]
+    fn eval_parent_folder_import() {
+        assert_eq!(
+            eval_ok("(builtins.import ./src/tests/import_tests/nested/parent-folder-import.nix).dataPath"),
+            Value::Str("imported!".into())
+        );
+        assert_eq!(
+            eval_ok("(builtins.import ./src/tests/import_tests/nested/parent-folder-import.nix).dataString"),
+            Value::Str("imported!".into())
+        );
+    }
+
+    #[test]
+    fn eval_relative_string() {
+        assert_eq!(
+            eval_err(r#"builtins.import "./foo.nix""#),
+            NixErrorKind::Other {
+                codename: "builtins-import-non-absolute-path".to_owned()
+            }
+        )
     }
 
     #[test]
