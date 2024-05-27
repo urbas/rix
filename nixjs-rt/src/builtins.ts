@@ -9,9 +9,11 @@ import {
   FALSE,
   Lambda,
   NULL,
+  NixBool,
   NixFloat,
   NixInt,
   NixList,
+  NixNull,
   NixString,
   NixType,
   NixTypeClass,
@@ -385,39 +387,75 @@ export function getBuiltins() {
     },
 
     isAttrs: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof Attrset) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isBool: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixBool) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isFloat: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixFloat) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isFunction: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof Lambda) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isInt: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixInt) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isList: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixList) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isNull: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixNull) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isPath: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof Path) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     isString: (arg) => {
-      throw new Error("unimplemented");
+      if (arg instanceof NixString) {
+        return TRUE;
+      } else {
+        return FALSE;
+      }
     },
 
     length: (arg) => {
