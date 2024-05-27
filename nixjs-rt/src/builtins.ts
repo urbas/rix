@@ -9,9 +9,11 @@ import {
   FALSE,
   Lambda,
   NULL,
+  NixBool,
   NixFloat,
   NixInt,
   NixList,
+  NixNull,
   NixString,
   NixType,
   NixTypeClass,
@@ -385,39 +387,39 @@ export function getBuiltins() {
     },
 
     isAttrs: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof Attrset);
     },
 
     isBool: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixBool);
     },
 
     isFloat: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixFloat);
     },
 
     isFunction: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof Lambda);
     },
 
     isInt: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixInt);
     },
 
     isList: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixList);
     },
 
     isNull: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixNull);
     },
 
     isPath: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof Path);
     },
 
     isString: (arg) => {
-      throw new Error("unimplemented");
+      return new NixBool(arg instanceof NixString);
     },
 
     length: (arg) => {
