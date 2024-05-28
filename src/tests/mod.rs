@@ -15,18 +15,19 @@ mod literals;
 mod operators;
 
 fn eval_ok(nix_expr: &str) -> Value {
-    match evaluate(nix_expr) {
+    let workdir = std::env::current_dir().unwrap();
+    match evaluate(nix_expr, &workdir) {
         Ok(val) => val,
         Err(err) => panic!(
-            "eval '{}' shouldn't fail.\nError message: {}",
-            nix_expr, err
+            "eval '{nix_expr}' shouldn't fail.\nError message: {err:?}",
         ),
     }
 }
 
 fn eval_err(nix_expr: &str) -> NixErrorKind {
-    evaluate(nix_expr)
-        .expect_err(&format!("eval '{}' expected an error", nix_expr))
+    let workdir = std::env::current_dir().unwrap();
+    evaluate(nix_expr, &workdir)
+        .expect_err(&format!("eval '{nix_expr}' expected an error"))
         .kind
 }
 
