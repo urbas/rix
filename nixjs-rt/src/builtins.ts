@@ -5,18 +5,20 @@ import { typeMismatchError } from "./errors/typeError";
 import {
   Attrset,
   EvalCtx,
-  EvalException,
   FALSE,
   Lambda,
   NULL,
+  NixBool,
   NixFloat,
   NixInt,
   NixList,
+  NixNull,
   NixString,
   NixType,
   NixTypeClass,
   Path,
   TRUE,
+  nixBoolFromJs,
 } from "./lib";
 import { dirOf, isAbsolutePath, normalizePath } from "./utils";
 
@@ -385,39 +387,39 @@ export function getBuiltins() {
     },
 
     isAttrs: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof Attrset);
     },
 
     isBool: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixBool);
     },
 
     isFloat: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixFloat);
     },
 
     isFunction: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof Lambda);
     },
 
     isInt: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixInt);
     },
 
     isList: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixList);
     },
 
     isNull: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixNull);
     },
 
     isPath: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof Path);
     },
 
     isString: (arg) => {
-      throw new Error("unimplemented");
+      return nixBoolFromJs(arg instanceof NixString);
     },
 
     length: (arg) => {
