@@ -42,6 +42,9 @@ export { NixTypeMismatchError } from "./errors/typeError";
 export { NixCouldntFindVariableError } from "./errors/variable";
 export { NixAbortError } from "./errors/abort";
 
+// Constant re-exports
+export { NULL, TRUE, FALSE } from "./utils";
+
 // Types:
 export class EvalException extends Error {
   constructor(message: string) {
