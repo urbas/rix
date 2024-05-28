@@ -20,7 +20,15 @@ import {
   couldntFindVariableError,
 } from "./errors/variable";
 import { NixAbortError } from "./errors/abort";
-import { isAbsolutePath, joinPaths, normalizePath } from "./utils";
+import {
+  FALSE,
+  NULL,
+  TRUE,
+  isAbsolutePath,
+  joinPaths,
+  nixBoolFromJs,
+  normalizePath,
+} from "./utils";
 
 // Error re-exports
 export { NixError } from "./errors";
@@ -33,6 +41,9 @@ export { NixOtherError } from "./errors/other";
 export { NixTypeMismatchError } from "./errors/typeError";
 export { NixCouldntFindVariableError } from "./errors/variable";
 export { NixAbortError } from "./errors/abort";
+
+// Constant re-exports
+export { NULL, TRUE, FALSE } from "./utils";
 
 // Types:
 export class EvalException extends Error {
@@ -139,7 +150,7 @@ export abstract class NixType {
   }
 
   and(rhs: NixType): NixBool {
-    return _nixBoolFromJs(this.asBoolean() && rhs.asBoolean());
+    return nixBoolFromJs(this.asBoolean() && rhs.asBoolean());
   }
 
   apply(param: NixType): NixType {
@@ -183,11 +194,11 @@ export abstract class NixType {
   }
 
   implication(rhs: NixType): NixBool {
-    return _nixBoolFromJs(!this.asBoolean() || rhs.asBoolean());
+    return nixBoolFromJs(!this.asBoolean() || rhs.asBoolean());
   }
 
   invert(): NixBool {
-    return _nixBoolFromJs(!this.asBoolean());
+    return nixBoolFromJs(!this.asBoolean());
   }
 
   /**
@@ -228,7 +239,7 @@ export abstract class NixType {
   }
 
   or(rhs: NixType): NixBool {
-    return _nixBoolFromJs(this.asBoolean() || rhs.asBoolean());
+    return nixBoolFromJs(this.asBoolean() || rhs.asBoolean());
   }
 
   select(attrPath: NixType[], defaultValue: NixType | undefined): NixType {
@@ -333,7 +344,7 @@ export class NixBool extends NixType {
     if (!(rhs instanceof NixBool)) {
       return FALSE;
     }
-    return _nixBoolFromJs(this.value === rhs.value);
+    return nixBoolFromJs(this.value === rhs.value);
   }
 }
 
@@ -392,7 +403,7 @@ export abstract class Attrset extends NixType implements Scope {
       }
       foundValue = foundValue.get(attrName);
     }
-    return _nixBoolFromJs(foundValue !== undefined);
+    return nixBoolFromJs(foundValue !== undefined);
   }
 
   /**
@@ -669,10 +680,10 @@ export class NixFloat extends NixType {
   override eq(rhs: NixType): NixBool {
     rhs = rhs.toStrict();
     if (rhs instanceof NixInt) {
-      return _nixBoolFromJs(this.value === rhs.number);
+      return nixBoolFromJs(this.value === rhs.number);
     }
     if (rhs instanceof NixFloat) {
-      return _nixBoolFromJs(this.value === rhs.value);
+      return nixBoolFromJs(this.value === rhs.value);
     }
     return FALSE;
   }
@@ -680,10 +691,10 @@ export class NixFloat extends NixType {
   override less(rhs: NixType): NixBool {
     rhs = rhs.toStrict();
     if (rhs instanceof NixInt) {
-      return _nixBoolFromJs(this.value < rhs.number);
+      return nixBoolFromJs(this.value < rhs.number);
     }
     if (rhs instanceof NixFloat) {
-      return _nixBoolFromJs(this.value < rhs.value);
+      return nixBoolFromJs(this.value < rhs.value);
     }
     return super.less(rhs);
   }
@@ -773,10 +784,10 @@ export class NixInt extends NixType {
   override eq(rhs: NixType): NixBool {
     rhs = rhs.toStrict();
     if (rhs instanceof NixInt) {
-      return _nixBoolFromJs(this.int64 === rhs.int64);
+      return nixBoolFromJs(this.int64 === rhs.int64);
     }
     if (rhs instanceof NixFloat) {
-      return _nixBoolFromJs(this.number === rhs.value);
+      return nixBoolFromJs(this.number === rhs.value);
     }
     return super.eq(rhs);
   }
@@ -784,10 +795,10 @@ export class NixInt extends NixType {
   override less(rhs: NixType): NixBool {
     rhs = rhs.toStrict();
     if (rhs instanceof NixInt) {
-      return _nixBoolFromJs(this.int64 < rhs.int64);
+      return nixBoolFromJs(this.int64 < rhs.int64);
     }
     if (rhs instanceof NixFloat) {
-      return _nixBoolFromJs(this.number < rhs.value);
+      return nixBoolFromJs(this.number < rhs.value);
     }
     return super.less(rhs);
   }
@@ -894,7 +905,7 @@ export class NixList extends NixType {
         return TRUE;
       }
     }
-    return _nixBoolFromJs(this.values.length < rhs.values.length);
+    return nixBoolFromJs(this.values.length < rhs.values.length);
   }
 
   toJs(): NixType[] {
@@ -916,7 +927,7 @@ export class NixList extends NixType {
 
 export class NixNull extends NixType {
   override eq(rhs: NixType): NixBool {
-    return _nixBoolFromJs(rhs.toStrict() instanceof NixNull);
+    return nixBoolFromJs(rhs.toStrict() instanceof NixNull);
   }
 
   toJs(): boolean {
@@ -935,10 +946,6 @@ export class NixNull extends NixType {
     return "null";
   }
 }
-
-export const NULL = new NixNull();
-export const TRUE = new NixBool(true);
-export const FALSE = new NixBool(false);
 
 export class NixString extends NixType {
   readonly value: string;
@@ -968,7 +975,7 @@ export class NixString extends NixType {
     if (!(rhs instanceof NixString)) {
       return FALSE;
     }
-    return _nixBoolFromJs(this.value === rhs.value);
+    return nixBoolFromJs(this.value === rhs.value);
   }
 
   override less(rhs: NixType): NixBool {
@@ -976,7 +983,7 @@ export class NixString extends NixType {
     if (!(rhs instanceof NixString)) {
       return super.less(rhs);
     }
-    return _nixBoolFromJs(this.value < rhs.value);
+    return nixBoolFromJs(this.value < rhs.value);
   }
 
   toJs(): string {
@@ -1020,7 +1027,7 @@ export class Path extends NixType {
     if (!(rhs instanceof Path)) {
       return super.less(rhs);
     }
-    return _nixBoolFromJs(this.path < rhs.path);
+    return nixBoolFromJs(this.path < rhs.path);
   }
 
   asString(): string {
@@ -1332,10 +1339,6 @@ function _attrPathToValue(
     map.set(attrPath[1].asString(), nestedValue);
     return new StrictAttrset(map);
   });
-}
-
-function _nixBoolFromJs(value: boolean): NixBool {
-  return value ? TRUE : FALSE;
 }
 
 function _buildGlobalScope() {
