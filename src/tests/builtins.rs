@@ -518,38 +518,142 @@ mod intersectAttrs {
 
 mod isAttrs {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(
+            eval_ok("builtins.isAttrs { a = 1; b = 2; }"),
+            Value::Bool(true)
+        );
+        assert_eq!(eval_ok("builtins.isAttrs { a = 1; }"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isAttrs 1"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isAttrs [ 1 2 ]"), Value::Bool(false));
+    }
 }
 
 mod isBool {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isBool true"), Value::Bool(true));
+        assert_eq!(eval_ok("builtins.isBool false"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isBool 1"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isBool [ 1 2 ]"), Value::Bool(false));
+    }
 }
 
 mod isFloat {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isFloat 1.0"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isFloat { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isFloat true"), Value::Bool(false));
+    }
 }
 
 mod isFunction {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isFunction (x: x)"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isFunction 1"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isFunction [ 1 2 ]"), Value::Bool(false));
+    }
 }
 
 mod isInt {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isInt 1"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isInt { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isInt true"), Value::Bool(false));
+    }
 }
 
 mod isList {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isList [ 1 2 ]"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isList { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isList true"), Value::Bool(false));
+    }
 }
 
 mod isNull {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isNull null"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isNull { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isNull true"), Value::Bool(false));
+    }
 }
 
 mod isPath {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isPath ./foo"), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isPath { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isPath true"), Value::Bool(false));
+    }
 }
 
 mod isString {
     use super::*;
+
+    #[test]
+    fn eval_true() {
+        assert_eq!(eval_ok("builtins.isString \"foo\""), Value::Bool(true));
+    }
+
+    #[test]
+    fn eval_false() {
+        assert_eq!(eval_ok("builtins.isString { }"), Value::Bool(false));
+        assert_eq!(eval_ok("builtins.isString true"), Value::Bool(false));
+    }
 }
 
 mod length {

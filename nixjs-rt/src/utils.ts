@@ -1,3 +1,5 @@
+import { NixBool, NixNull } from "./lib";
+
 export function isAbsolutePath(path: string): boolean {
   return path.startsWith("/");
 }
