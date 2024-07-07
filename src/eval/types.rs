@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use deno_core::v8;
+
 use super::{
     error::NixError,
     helpers::{call_js_instance_mehod, is_nixrt_type, try_get_js_object_key},

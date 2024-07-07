@@ -8,5 +8,5 @@ in
 buildNpmPackage rec {
   name = "nixjs-rt";
   src = self;
-  npmDepsHash = "sha256-bzi3/pHxDYgKKZsV3zVIwZ6cwGjAz0lolzeCotao+9I=";
+  npmDepsHash = "sha256-ev5i6sL2mQgxu7kuLVaMIJfUVEXcP27n8u2RiGE0Cd8=";
 }

@@ -1,7 +1,7 @@
 use std::path::Path;
-use std::sync::Once;
 
-use v8::{HandleScope, Local, ModuleStatus, Object};
+use deno_core::v8;
+use deno_core::v8::{HandleScope, Local, ModuleStatus, Object};
 
 use crate::eval::types::EvalResult;
 
@@ -10,10 +10,8 @@ use super::error::NixError;
 use super::helpers::{call_js_function, get_nixrt_type, try_get_js_object_key};
 use super::types::js_value_to_nix;
 
-static INIT_V8: Once = Once::new();
-
 pub fn evaluate(nix_expr: &str, workdir: &Path) -> EvalResult {
-    initialize_v8();
+    deno_core::JsRuntime::init_platform(None);
     // Declare the V8 execution context
     let isolate = &mut v8::Isolate::new(Default::default());
     let scope = &mut v8::HandleScope::new(isolate);
@@ -34,10 +32,8 @@ pub fn evaluate(nix_expr: &str, workdir: &Path) -> EvalResult {
     ];
 
     for (name, value) in globals {
-        let import_module_attr = v8::String::new(scope, name).unwrap();
-        global
-            .set(scope, import_module_attr.into(), *value)
-            .unwrap();
+        let global_var_name = v8::String::new(scope, name).unwrap();
+        global.set(scope, global_var_name.into(), *value).unwrap();
     }
 
     // Execute the Nix runtime JS module, get its exports
@@ -157,14 +153,6 @@ fn exec_module<'a>(
         .ok_or("Failed to get the module namespace.")?;
 
     Ok(obj)
-}
-
-fn initialize_v8() {
-    INIT_V8.call_once(|| {
-        let platform = v8::new_default_platform(0, false).make_shared();
-        v8::V8::initialize_platform(platform);
-        v8::V8::initialize();
-    });
 }
 
 fn nix_value_from_module(
