@@ -1,3 +1,5 @@
+use deno_core::v8;
+
 use super::{
     helpers::{call_js_function, get_js_value_key, is_nixrt_type},
     types::NixTypeKind,

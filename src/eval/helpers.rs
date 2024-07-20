@@ -1,3 +1,5 @@
+use deno_core::v8;
+
 use super::error::{js_error_to_rust, NixError};
 
 pub fn is_nixrt_type<'s, T>(
