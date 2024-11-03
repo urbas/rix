@@ -11,11 +11,11 @@ use super::helpers::{call_js_function, get_nixrt_type, try_get_js_object_key};
 use super::types::js_value_to_nix;
 
 pub fn evaluate(nix_expr: &str, workdir: &Path) -> EvalResult {
-    deno_core::JsRuntime::init_platform(None);
+    deno_core::JsRuntime::init_platform(None, false);
     // Declare the V8 execution context
     let isolate = &mut v8::Isolate::new(Default::default());
     let scope = &mut v8::HandleScope::new(isolate);
-    let context = v8::Context::new(scope);
+    let context = v8::Context::new(scope, v8::ContextOptions::default());
     let scope = &mut v8::ContextScope::new(scope, context);
     let global = context.global(scope);
 
@@ -56,8 +56,8 @@ fn nix_expr_to_js_function<'s>(
     nix_expr: &str,
 ) -> Result<v8::Local<'s, v8::Function>, NixError> {
     let source_str = emit_module(nix_expr)?;
-    let module_source_v8 = to_v8_source(scope, &source_str, "<eval string>");
-    let module = v8::script_compiler::compile_module(scope, module_source_v8)
+    let mut module_source_v8 = to_v8_source(scope, &source_str, "<eval string>");
+    let module = v8::script_compiler::compile_module(scope, &mut module_source_v8)
         .ok_or("Failed to compile the module.")?;
 
     if module
@@ -132,8 +132,8 @@ fn exec_module<'a>(
     code: &str,
     scope: &mut v8::HandleScope<'a>,
 ) -> Result<Local<'a, Object>, NixError> {
-    let source = to_v8_source(scope, code, "<eval string>");
-    let module = v8::script_compiler::compile_module(scope, source)
+    let mut source = to_v8_source(scope, code, "<eval string>");
+    let module = v8::script_compiler::compile_module(scope, &mut source)
         .ok_or("Failed to compile the module.")?;
 
     if module
@@ -225,10 +225,11 @@ fn new_script_origin<'s>(
         resource_column_offset,
         resource_is_shared_cross_origin,
         script_id,
-        source_map_url.into(),
+        Some(source_map_url.into()),
         resource_is_opaque,
         is_wasm,
         is_module,
+        None, // host_defined_options
     )
 }
 

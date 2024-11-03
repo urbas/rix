@@ -322,9 +322,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.296.0"
+version = "0.317.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30c980bc491eac03722a67eb8c1345152216b3b5f781ee4bbc053863f91ca81b"
+checksum = "832a1852f64e9998909cb3230c13edf8a015a6ac2cd7149df155705b73d3d61e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -339,6 +339,7 @@ dependencies = [
  "libc",
  "memoffset",
  "parking_lot",
+ "percent-encoding",
  "pin-project",
  "serde",
  "serde_json",
@@ -359,9 +360,9 @@ checksum = "a13951ea98c0a4c372f162d669193b4c9d991512de9f2381dd161027f34b26b1"
 
 [[package]]
 name = "deno_ops"
-version = "0.172.0"
+version = "0.193.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66b5e85887cd447ee47643c27c1b1991c3d8e3562ced9777388ff1febd7945c7"
+checksum = "e9699db7a11ed2ef285c3a291af8d4f2227a49913f33f5d2e5d91781fa04a4aa"
 dependencies = [
  "proc-macro-rules",
  "proc-macro2",
@@ -374,9 +375,9 @@ dependencies = [
 
 [[package]]
 name = "deno_unsync"
-version = "0.3.10"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c8b95582c2023dbb66fccc37421b374026f5915fa507d437cb566904db9a3a"
+checksum = "2f36b4ef61a04ce201b925a5dffa90f88437d37fee4836c758470dd15ba7f05e"
 dependencies = [
  "parking_lot",
  "tokio",
@@ -1144,9 +1145,9 @@ dependencies = [
 
 [[package]]
 name = "serde_v8"
-version = "0.205.0"
+version = "0.226.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e5b49b3c13594f38a8b880bcaf8fbec2b6b05e5621931e71b701e6e6daeca2"
+checksum = "0b5002b5e19e0b4b91f3365865b3aee80a32cf9cafddbc91bec4de1ae0600ae5"
 dependencies = [
  "num-bigint",
  "serde",
@@ -1404,9 +1405,9 @@ checksum = "81dfa00651efa65069b0b6b651f4aaa31ba9e3c3ce0137aaad053604ee7e0314"
 
 [[package]]
 name = "v8"
-version = "0.98.1"
+version = "0.106.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d03f42deef61349d31ae100e7bcdcc5d9293c1126cb8aff8fd56ba3cba18340b"
+checksum = "a381badc47c6f15acb5fe0b5b40234162349ed9d4e4fd7c83a7f5547c0fc69c5"
 dependencies = [
  "bindgen",
  "bitflags",
